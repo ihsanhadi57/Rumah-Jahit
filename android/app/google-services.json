@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "794287977118",
+    "project_id": "rumah-jahit-alya",
+    "storage_bucket": "rumah-jahit-alya.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:794287977118:android:bba4eb8769765100c3418f",
+        "android_client_info": {
+          "package_name": "com.example.rumah_jahit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGhX0kMbHHtLZ9_lN__7lywQynoC6VmRY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
