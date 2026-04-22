@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF004D4C), // Deep Teal
           primary: const Color(0xFF004D4C),
-          surface: const Color(0xFFF8FAFA), // Sesuai DESIGN.md
+          surface: const Color(0xFFF8FAFA), // 
         ),
         useMaterial3: true,
         textTheme: GoogleFonts.interTextTheme(Theme.of(context).textTheme),

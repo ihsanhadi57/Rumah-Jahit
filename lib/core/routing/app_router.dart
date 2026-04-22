@@ -18,6 +18,7 @@ import '../../features/inventory/presentation/raw_material_detail_screen.dart';
 import '../../features/payroll/presentation/payroll_screen.dart';
 import 'package:rumah_jahit/features/payroll/domain/app_user.dart';
 import '../../features/payroll/presentation/employee_detail_screen.dart';
+import '../../features/finance/presentation/finance_screen.dart';
 
 // Kunci navigasi global
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -68,6 +69,13 @@ final goRouter = GoRouter(
             GoRoute(
               path: '/dashboard',
               builder: (context, state) => const DashboardScreen(),
+              routes: [
+                GoRoute(
+                  path: 'finance',
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (context, state) => const FinanceScreen(),
+                ),
+              ],
             ),
           ],
         ),

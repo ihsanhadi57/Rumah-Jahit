@@ -114,87 +114,92 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildHeroCard(BuildContext context, AsyncValue<double> revenueAsync, ColorScheme colors) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: colors.primary,
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [colors.primary, const Color(0xFF006766)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return InkWell(
+      onTap: () => context.go('/dashboard/finance'),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: colors.primary,
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            colors: [colors.primary, const Color(0xFF006766)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
-      ),
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'PENDAPATAN HARI INI',
-                style: GoogleFonts.inter(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              revenueAsync.when(
-                loading: () => Text(
-                  '...',
-                  style: GoogleFonts.manrope(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                error: (_, _) => Text(
-                  'Error',
-                  style: GoogleFonts.manrope(
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PENDAPATAN HARI INI',
+                  style: GoogleFonts.inter(
                     color: Colors.white70,
-                    fontSize: 24,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
                   ),
                 ),
-                data: (revenue) => Text(
-                  formatCurrency(revenue),
-                  style: GoogleFonts.manrope(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.trending_up,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Data Terkini',
-                    style: GoogleFonts.inter(
+                const SizedBox(height: 8),
+                revenueAsync.when(
+                  loading: () => Text(
+                    '...',
+                    style: GoogleFonts.manrope(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-          Positioned(
-            right: -10,
-            bottom: -20,
-            child: Icon(
-              Icons.account_balance_wallet,
-              size: 100,
-              color: Colors.white.withValues(alpha: 0.1),
+                  error: (_, _) => Text(
+                    'Error',
+                    style: GoogleFonts.manrope(
+                      color: Colors.white70,
+                      fontSize: 24,
+                    ),
+                  ),
+                  data: (revenue) => Text(
+                    formatCurrency(revenue),
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.trending_up,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Buka Catatan Keuangan',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-        ],
+            Positioned(
+              right: -10,
+              bottom: -20,
+              child: Icon(
+                Icons.account_balance_wallet,
+                size: 100,
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
