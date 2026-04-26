@@ -9,12 +9,14 @@ class PaymentMethodSelector extends StatefulWidget {
   final double amountPaid;
   final ValueChanged<String> onMethodChanged;
   final ValueChanged<double> onAmountChanged;
+  final bool hasCustom;
 
   const PaymentMethodSelector({
     super.key,
     required this.grandTotal,
     required this.selectedMethod,
     required this.amountPaid,
+    required this.hasCustom,
     required this.onMethodChanged,
     required this.onAmountChanged,
   });
@@ -82,8 +84,8 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
         ),
         const SizedBox(height: 24),
 
-        // Cash input (only for CASH)
-        if (widget.selectedMethod == 'CASH')
+        // Nominal input (for CASH or if custom order allows DP)
+        if (widget.selectedMethod == 'CASH' || widget.hasCustom)
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -94,7 +96,7 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'UANG TUNAI',
+                  widget.hasCustom ? 'NOMINAL BAYAR (DP / LUNAS)' : 'UANG TUNAI',
                   style: GoogleFonts.inter(
                     color: Colors.grey.shade700,
                     fontSize: 10,
@@ -179,32 +181,31 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
                 ),
                 const SizedBox(height: 16),
 
-                // Change display
+                // Change / DP display
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: change >= 0
                         ? Colors.grey.shade200
-                        : Colors.red.shade50,
+                        : Colors.orange.shade50,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Kembalian',
+                        change >= 0 ? 'Kembalian' : 'Sisa Tagihan',
                         style: GoogleFonts.inter(fontSize: 12),
                       ),
                       Text(
                         widget.amountPaid > 0
-                            ? _formatCurrency(
-                                change >= 0 ? change : 0)
+                            ? _formatCurrency(change >= 0 ? change : -change)
                             : 'Rp 0',
                         style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w800,
                           color: change >= 0
                               ? const Color(0xFF006766)
-                              : Colors.red.shade700,
+                              : Colors.orange.shade800,
                           fontSize: 14,
                         ),
                       ),
@@ -215,10 +216,12 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      'Uang kurang ${_formatCurrency(-change)}',
+                      widget.hasCustom 
+                        ? 'Sisa tagihan akan dilunasi saat pengambilan'
+                        : 'Uang kurang ${_formatCurrency(-change)}',
                       style: GoogleFonts.inter(
                         fontSize: 11,
-                        color: Colors.red.shade600,
+                        color: widget.hasCustom ? Colors.orange.shade800 : Colors.red.shade600,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -284,8 +287,8 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
     return GestureDetector(
       onTap: () {
         widget.onMethodChanged(value);
-        if (value != 'CASH') {
-          // Auto-set exact amount for non-cash
+        if (value != 'CASH' && !widget.hasCustom) {
+          // Auto-set exact amount for non-cash if not custom
           widget.onAmountChanged(widget.grandTotal);
         }
       },

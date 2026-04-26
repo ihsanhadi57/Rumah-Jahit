@@ -1,0 +1,34 @@
+# Perombakan Sistem SPK (Report/Hari Real-Time)
+
+Status: **Disetujui dengan Modifikasi (Melanjutkan ke Eksekusi)**
+
+Berdasarkan diskusi, perombakan akan dilakukan dengan skema berikut:
+
+## 1. Perubahan Struktur Data (Domain & Repository)
+
+### `ProductionOrder` & `TailorAssignment`
+- **Hapus `piecesCount`**: Penjahit yang ditambahkan tidak lagi perlu dibagi jumlah `pieces` nya. Semua penjahit yang ditugaskan mulai dari angka 0. 
+- **Tambah `completedPieces`**: Menyimpan total berapa baju yang sudah diselesaikan penjahit tersebut.
+- **Tambah Koleksi/List Baru `ProductionReport` (Riwayat Setoran)**: Setiap laporan harian akan terecord ke dalam data SPK itu sendiri. Berisi: `id_report`, `nama_penjahit`, `ukuran (jika restock)`, `jumlah`, dan `tanggal`. Ini berfungsi sebagai **history penambahan item**.
+
+### `ProductionOrderRepository`
+Menambahkan metode `reportDailyProduction` yang akan melakukan transaksi (batch update) secara atomik:
+  1. Menambahkan record laporan ke dalam riwayat SPK.
+  2. Menaikkan nilai `completed_quantity` dan `completedPieces` milik penjahit pada SPK.
+  3. **Gudang (Real-Time)**: Menaikkan `current_stock` barang jadi pada koleksi `products` sesuai varian/ukuran saat laporan ditekan.
+  4. **Payroll (Real-Time)**: Membuat dokumen upah baru di `payroll_records` bernilai `qty * wage_per_piece` dengan status 'UNPAID'.
+
+## 2. Pembaruan Error Handling & Progress
+- Validasi maksimal tidak akan memblokir, melainkan sistem akan menyesuaikan progress bar dan menuliskan: **"Sisa Target: X pcs"** atau total yang belum selesai.
+- Target SPK berfungsi murni sebagai target produksi. SPK bisa ditutup manual ketika sudah dirasa cukup. 
+
+## 3. Perubahan Antarmuka (UI)
+
+### `AddSpkForm`
+- **Penjahit**: Admin hanya perlu mencentang (memilih) nama-nama penjahit yang ditugaskan untuk SPK ini. Tidak ada lagi popup untuk membagi rata / atur pecahan Pcs.
+
+### `SpkDetailScreen`
+- **Bagian Penjahit**: Hanya menampilkan nama penjahit dan berapa total *Completed Pieces* nya. Masih ada tombol + dan X untuk menugaskan / menghapus penjahit (yang belum memiliki hasil).
+- **Bagian Progress & Riwayat**: 
+  - Tombol **"Catat Laporan Harian"**.
+  - List / Tabel yang menunjukkan siapa menyetor berapa, ukuran apa, di tanggal berapa. Tiap kali ada report masuk, list ini bertambah panjang, dan tombol ini berfungsi sebagai log yang Anda minta: *"history penambahan item barang jadi dari spk mana dari setiap report"*.

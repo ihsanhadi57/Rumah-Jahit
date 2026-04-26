@@ -22,6 +22,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _selectedPaymentMethod = 'CASH';
   double _amountPaid = 0;
   bool _isProcessing = false;
+  bool _hasLogo = false;
+  final _logoPriceController = TextEditingController();
 
   // Customer info controllers (for custom orders)
   final _customerNameController = TextEditingController();
@@ -32,6 +34,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   void dispose() {
     _customerNameController.dispose();
     _customerPhoneController.dispose();
+    _logoPriceController.dispose();
     super.dispose();
   }
 
@@ -39,6 +42,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final hasCustomItems = cart.customItems.isNotEmpty;
+    final isTablet = MediaQuery.of(context).size.width > 768;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFA),
@@ -104,473 +108,523 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ],
               ),
             )
-          : ListView(
-              padding: const EdgeInsets.all(20),
+          : _buildResponsiveLayout(cart, hasCustomItems, isTablet),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: (cart.isEmpty || isTablet)
+          ? null
+          : Container(
+              color: const Color(0xFFF9FAFA),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: _buildCheckoutButton(),
+            ),
+    );
+  }
+
+  Widget _buildResponsiveLayout(
+      CartState cart, bool hasCustomItems, bool isTablet) {
+    if (isTablet) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 5,
+            child: ListView(
+              padding: const EdgeInsets.all(24),
+              children: _buildLeftColumn(cart, hasCustomItems),
+            ),
+          ),
+          Container(
+            width: 1,
+            color: Colors.grey.shade300,
+            margin: const EdgeInsets.symmetric(vertical: 24),
+          ),
+          Expanded(
+            flex: 4,
+            child: ListView(
+              padding: const EdgeInsets.all(24),
               children: [
-                // Order Details Section
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Order Details',
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF001F1F),
+                ..._buildRightColumn(cart, hasCustomItems),
+                const SizedBox(height: 32),
+                _buildCheckoutButton(),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        ..._buildLeftColumn(cart, hasCustomItems),
+        const SizedBox(height: 32),
+        ..._buildRightColumn(cart, hasCustomItems),
+        const SizedBox(height: 100),
+      ],
+    );
+  }
+
+  List<Widget> _buildLeftColumn(CartState cart, bool hasCustomItems) {
+    return [
+      // Order Details Section
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Order Details',
+            style: GoogleFonts.manrope(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF001F1F),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFFA4F0E9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${cart.totalItems} ITEMS',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF004D4C),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+
+      // Product-based cart items
+      ...cart.items.map(
+        (item) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Dismissible(
+            key: Key(item.product.id),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade400,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            onDismissed: (_) {
+              ref.read(cartProvider.notifier).removeItem(item.product.id);
+            },
+            child: OrderItemCard(
+              icon: Icons.checkroom_outlined,
+              title: '${item.product.name} (${item.product.size})',
+              subtitle: '${item.product.formattedPrice} / pcs',
+              price: formatCurrency(item.totalPrice),
+              quantity: item.quantity,
+              onIncrement: () {
+                ref
+                    .read(cartProvider.notifier)
+                    .updateQuantity(item.product.id, item.quantity + 1);
+              },
+              onDecrement: () {
+                ref
+                    .read(cartProvider.notifier)
+                    .updateQuantity(item.product.id, item.quantity - 1);
+              },
+            ),
+          ),
+        ),
+      ),
+
+      // Custom cart items
+      ...cart.customItems.map(
+        (item) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Dismissible(
+            key: Key(item.id),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade400,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            onDismissed: (_) {
+              ref.read(cartProvider.notifier).removeCustomItem(item.id);
+            },
+            child: OrderItemCard(
+              icon: Icons.edit_note_outlined,
+              title: item.name,
+              subtitle: item.description.isNotEmpty
+                  ? '${item.formattedPrice} / pcs • ${item.description}'
+                  : '${item.formattedPrice} / pcs',
+              price: formatCurrency(item.totalPrice),
+              quantity: item.quantity,
+              isSpecial: true,
+              onIncrement: () {
+                ref
+                    .read(cartProvider.notifier)
+                    .updateCustomQuantity(item.id, item.quantity + 1);
+              },
+              onDecrement: () {
+                ref
+                    .read(cartProvider.notifier)
+                    .updateCustomQuantity(item.id, item.quantity - 1);
+              },
+            ),
+          ),
+        ),
+      ),
+
+      // Add Custom Item Button
+      const SizedBox(height: 4),
+      GestureDetector(
+        onTap: () => _showAddCustomItemDialog(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: const Color(0xFF004D4C),
+              style: BorderStyle.solid,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            color: const Color(0xFF004D4C).withValues(alpha: 0.04),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.add_circle_outline,
+                size: 18,
+                color: Color(0xFF004D4C),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Tambah Item Kustom',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: const Color(0xFF004D4C),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+
+      // ── Customer Info Section (only when custom items exist) ──
+      if (hasCustomItems) ...[
+        const SizedBox(height: 32),
+        Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.person_outline,
+                color: Colors.amber.shade800,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Info Pelanggan',
+              style: GoogleFonts.manrope(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF001F1F),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Wajib diisi untuk pesanan personal',
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            color: Colors.grey.shade500,
+          ),
+        ),
+        const SizedBox(height: 16),
+        CustomTextField(
+          controller: _customerNameController,
+          label: 'Nama Pelanggan',
+          hint: 'Budi',
+          icon: Icons.person_outline,
+          textCapitalization: TextCapitalization.words,
+        ),
+        const SizedBox(height: 14),
+        CustomTextField(
+          controller: _customerPhoneController,
+          label: 'No. WhatsApp',
+          hint: '08123456789',
+          icon: Icons.phone_outlined,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        ),
+        const SizedBox(height: 14),
+        // Pickup Date Picker
+        GestureDetector(
+          onTap: () => _selectPickupDate(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F4F4),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 18,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tanggal Pengambilan',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade500,
+                        ),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _pickupDate != null
+                            ? DateFormat('dd MMMM yyyy').format(_pickupDate!)
+                            : 'Pilih tanggal',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _pickupDate != null
+                              ? const Color(0xFF001F1F)
+                              : Colors.grey.shade400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.grey.shade600,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ];
+  }
+
+  double get _logoPrice {
+    if (!_hasLogo) return 0;
+    final text = _logoPriceController.text.replaceAll(RegExp(r'[^\d]'), '');
+    return double.tryParse(text) ?? 0;
+  }
+
+  List<Widget> _buildRightColumn(CartState cart, bool hasCustomItems) {
+    return [
+      // Logo Section
+      _buildLogoSection(),
+      const SizedBox(height: 32),
+      // Payment Method Section
+      Text(
+        'Payment Method',
+        style: GoogleFonts.manrope(
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+          color: const Color(0xFF001F1F),
+        ),
+      ),
+      const SizedBox(height: 16),
+      PaymentMethodSelector(
+        grandTotal: cart.grandTotal + _logoPrice,
+        selectedMethod: _selectedPaymentMethod,
+        amountPaid: _amountPaid,
+        hasCustom: hasCustomItems,
+        onMethodChanged: (method) {
+          setState(() => _selectedPaymentMethod = method);
+        },
+        onAmountChanged: (amount) {
+          setState(() => _amountPaid = amount);
+        },
+      ),
+      const SizedBox(height: 32),
+
+      // Order Summary
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            _summaryRow('Subtotal', formatCurrency(cart.subtotal)),
+            const SizedBox(height: 8),
+            if (cart.discount > 0)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Potongan Harga',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _showDiscountDialog,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: Colors.orange.shade200,
+                            ),
+                          ),
+                          child: Text(
+                            'Ubah Diskon',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.orange.shade800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '- ${formatCurrency(cart.discount)}',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.orange.shade800,
                     ),
-                    Container(
+                  ),
+                ],
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Diskon',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _showDiscountDialog,
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFA4F0E9),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${cart.totalItems} ITEMS',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF004D4C),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Product-based cart items
-                ...cart.items.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Dismissible(
-                      key: Key(item.product.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade400,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      onDismissed: (_) {
-                        ref
-                            .read(cartProvider.notifier)
-                            .removeItem(item.product.id);
-                      },
-                      child: OrderItemCard(
-                        icon: Icons.checkroom_outlined,
-                        title: '${item.product.name} (${item.product.size})',
-                        subtitle: '${item.product.formattedPrice} / pcs',
-                        price: formatCurrency(item.totalPrice),
-                        quantity: item.quantity,
-                        onIncrement: () {
-                          ref
-                              .read(cartProvider.notifier)
-                              .updateQuantity(
-                                item.product.id,
-                                item.quantity + 1,
-                              );
-                        },
-                        onDecrement: () {
-                          ref
-                              .read(cartProvider.notifier)
-                              .updateQuantity(
-                                item.product.id,
-                                item.quantity - 1,
-                              );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Custom cart items
-                ...cart.customItems.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Dismissible(
-                      key: Key(item.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade400,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      onDismissed: (_) {
-                        ref
-                            .read(cartProvider.notifier)
-                            .removeCustomItem(item.id);
-                      },
-                      child: OrderItemCard(
-                        icon: Icons.edit_note_outlined,
-                        title: item.name,
-                        subtitle: item.description.isNotEmpty
-                            ? '${item.formattedPrice} / pcs • ${item.description}'
-                            : '${item.formattedPrice} / pcs',
-                        price: formatCurrency(item.totalPrice),
-                        quantity: item.quantity,
-                        isSpecial: true,
-                        onIncrement: () {
-                          ref
-                              .read(cartProvider.notifier)
-                              .updateCustomQuantity(item.id, item.quantity + 1);
-                        },
-                        onDecrement: () {
-                          ref
-                              .read(cartProvider.notifier)
-                              .updateCustomQuantity(item.id, item.quantity - 1);
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Add Custom Item Button
-                const SizedBox(height: 4),
-                GestureDetector(
-                  onTap: () => _showAddCustomItemDialog(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: const Color(0xFF004D4C),
-                        style: BorderStyle.solid,
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      color: const Color(0xFF004D4C).withValues(alpha: 0.04),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.add_circle_outline,
-                          size: 18,
-                          color: Color(0xFF004D4C),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Tambah Item Kustom',
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: const Color(0xFF004D4C),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // ── Customer Info Section (only when custom items exist) ──
-                if (hasCustomItems) ...[
-                  const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.person_outline,
-                          color: Colors.amber.shade800,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Info Pelanggan',
-                        style: GoogleFonts.manrope(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF001F1F),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Wajib diisi untuk pesanan personal',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _customerNameController,
-                    label: 'Nama Pelanggan',
-                    hint: 'Budi',
-                    icon: Icons.person_outline,
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  const SizedBox(height: 14),
-                  CustomTextField(
-                    controller: _customerPhoneController,
-                    label: 'No. WhatsApp',
-                    hint: '08123456789',
-                    icon: Icons.phone_outlined,
-                    keyboardType: TextInputType.phone,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
-                  const SizedBox(height: 14),
-                  // Pickup Date Picker
-                  GestureDetector(
-                    onTap: () => _selectPickupDate(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF2F4F4),
-                        borderRadius: BorderRadius.circular(12),
+                        color: const Color(0xFF004D4C).withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.calendar_today_outlined,
-                            size: 18,
-                            color: Colors.grey.shade600,
+                          const Icon(
+                            Icons.add_circle_outline,
+                            size: 14,
+                            color: Color(0xFF004D4C),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Tanggal Pengambilan',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _pickupDate != null
-                                      ? DateFormat(
-                                          'dd MMMM yyyy',
-                                        ).format(_pickupDate!)
-                                      : 'Pilih tanggal',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: _pickupDate != null
-                                        ? const Color(0xFF001F1F)
-                                        : Colors.grey.shade400,
-                                  ),
-                                ),
-                              ],
+                          const SizedBox(width: 4),
+                          Text(
+                            'Tambah Diskon',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF004D4C),
                             ),
-                          ),
-                          Icon(
-                            Icons.arrow_drop_down,
-                            color: Colors.grey.shade600,
                           ),
                         ],
                       ),
                     ),
                   ),
                 ],
-
-                const SizedBox(height: 32),
-
-                // Payment Method Section
-                Text(
-                  'Payment Method',
-                  style: GoogleFonts.manrope(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF001F1F),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                PaymentMethodSelector(
-                  grandTotal: cart.grandTotal,
-                  selectedMethod: _selectedPaymentMethod,
-                  amountPaid: _amountPaid,
-                  onMethodChanged: (method) {
-                    setState(() => _selectedPaymentMethod = method);
-                  },
-                  onAmountChanged: (amount) {
-                    setState(() => _amountPaid = amount);
-                  },
-                ),
-                const SizedBox(height: 32),
-
-                // Order Summary
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    children: [
-                      _summaryRow('Subtotal', formatCurrency(cart.subtotal)),
-                      const SizedBox(height: 8),
-                      if (cart.discount > 0)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'Potongan Harga',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: _showDiscountDialog,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade50,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: Colors.orange.shade200,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'Ubah Diskon',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.orange.shade800,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              '- ${formatCurrency(cart.discount)}',
-                              style: GoogleFonts.manrope(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.orange.shade800,
-                              ),
-                            ),
-                          ],
-                        )
-                      else
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Diskon',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: _showDiscountDialog,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF004D4C,
-                                  ).withValues(alpha: 0.05),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.add_circle_outline,
-                                      size: 14,
-                                      color: Color(0xFF004D4C),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Tambah Diskon',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF004D4C),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      const Divider(height: 24),
-                      _summaryRow(
-                        'Grand Total',
-                        formatCurrency(cart.grandTotal),
-                        isBold: true,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 100),
-              ],
-            ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: cart.isEmpty
-          ? null
-          : Container(
-              color: const Color(0xFFF9FAFA),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: _isProcessing ? null : () => _processPayment(),
-                  icon: _isProcessing
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.receipt_long, color: Colors.white),
-                  label: Text(
-                    _isProcessing ? 'Memproses...' : 'Bayar Sekarang',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF004D4C),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 4,
-                  ),
-                ),
               ),
+            if (_logoPrice > 0) ...[
+              _summaryRow('Biaya Lambang', formatCurrency(_logoPrice)),
+              const SizedBox(height: 8),
+            ],
+            const Divider(height: 24),
+            _summaryRow(
+              'Grand Total',
+              formatCurrency(cart.grandTotal + _logoPrice),
+              isBold: true,
             ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildCheckoutButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton.icon(
+        onPressed: _isProcessing ? null : () => _processPayment(),
+        icon: _isProcessing
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Icon(Icons.receipt_long, color: Colors.white),
+        label: Text(
+          _isProcessing ? 'Memproses...' : 'Bayar Sekarang',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF004D4C),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 4,
+        ),
+      ),
     );
   }
 
@@ -749,6 +803,77 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
+  Widget _buildLogoSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.school, color: Colors.blue.shade700, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Lambang Baju',
+                    style: GoogleFonts.manrope(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF001F1F),
+                    ),
+                  ),
+                ],
+              ),
+              Switch.adaptive(
+                value: _hasLogo,
+                activeColor: const Color(0xFF004D4C),
+                onChanged: (val) => setState(() => _hasLogo = val),
+              ),
+            ],
+          ),
+          if (_hasLogo) ...[
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _logoPriceController,
+              label: 'Harga Lambang (Opsional)',
+              hint: '0',
+              icon: Icons.payments_outlined,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                RupiahInputFormatter(),
+              ],
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '* Kosongkan jika sudah termasuk harga baju',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: Colors.grey.shade500,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _summaryRow(String label, String value, {bool isBold = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -808,7 +933,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       }
     }
 
-    if (_selectedPaymentMethod == 'CASH' && _amountPaid < cart.grandTotal) {
+    final finalGrandTotal = cart.grandTotal + _logoPrice;
+    final finalSubtotal = cart.subtotal + _logoPrice;
+
+    if (!hasCustom && _selectedPaymentMethod == 'CASH' && _amountPaid < finalGrandTotal) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Uang tunai tidak cukup!'),
@@ -826,13 +954,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final transaction = TransactionModel(
         id: '',
         cashierId: '',
-        subtotal: cart.subtotal,
+        subtotal: finalSubtotal,
         discount: cart.discount,
-        grandTotal: cart.grandTotal,
+        grandTotal: finalGrandTotal,
         paymentMethod: _selectedPaymentMethod,
-        amountPaid: _selectedPaymentMethod == 'CASH'
+        amountPaid: (_selectedPaymentMethod == 'CASH' || hasCustom)
             ? _amountPaid
-            : cart.grandTotal,
+            : finalGrandTotal,
         status: hasCustom ? 'PENDING' : 'SUCCESS',
         createdAt: DateTime.now(),
         customerName: hasCustom ? _customerNameController.text.trim() : null,
@@ -866,6 +994,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             productType: item.productType,
           ),
         ),
+        if (_hasLogo)
+          TransactionItem(
+            productId: 'logo_service',
+            productName: 'Lambang Sekolah',
+            size: _logoPrice > 0 ? '' : 'Gratis/Termasuk',
+            quantity: 1,
+            unitPrice: _logoPrice,
+            totalPrice: _logoPrice,
+            isCustom: true,
+          ),
       ];
 
       await transactionRepo.createTransaction(transaction, items);

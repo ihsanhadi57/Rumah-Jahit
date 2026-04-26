@@ -8,6 +8,12 @@ final firestoreProvider = Provider((ref) => FirebaseFirestore.instance);
 
 final financeDateRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
 
+enum FinanceFilterType { all, income, expense }
+
+final financeTypeFilterProvider = StateProvider<FinanceFilterType>(
+  (ref) => FinanceFilterType.all,
+);
+
 final financeTransactionsProvider = StreamProvider<List<FinanceTransaction>>((
   ref,
 ) {
@@ -27,22 +33,38 @@ final filteredFinanceTransactionsProvider =
     Provider<AsyncValue<List<FinanceTransaction>>>((ref) {
       final transactionsAsync = ref.watch(financeTransactionsProvider);
       final range = ref.watch(financeDateRangeProvider);
-
+      final typeFilter = ref.watch(financeTypeFilterProvider);
+ 
       return transactionsAsync.whenData((list) {
-        if (range == null) return list;
-        // Set range end to the end of the day
-        final endOfDay = DateTime(
-          range.end.year,
-          range.end.month,
-          range.end.day,
-          23,
-          59,
-          59,
-        );
-        return list.where((tx) {
-          return tx.createdAt.isAfter(range.start) &&
-              tx.createdAt.isBefore(endOfDay);
-        }).toList();
+        var filteredList = list;
+
+        // Apply Date Range Filter
+        if (range != null) {
+          final endOfDay = DateTime(
+            range.end.year,
+            range.end.month,
+            range.end.day,
+            23,
+            59,
+            59,
+          );
+          filteredList = filteredList.where((tx) {
+            return tx.createdAt.isAfter(range.start) &&
+                tx.createdAt.isBefore(endOfDay);
+          }).toList();
+        }
+
+        // Apply Type Filter
+        if (typeFilter != FinanceFilterType.all) {
+          final targetType =
+              typeFilter == FinanceFilterType.income
+                  ? FinanceTransactionType.income
+                  : FinanceTransactionType.expense;
+          filteredList =
+              filteredList.where((tx) => tx.type == targetType).toList();
+        }
+
+        return filteredList;
       });
     });
 

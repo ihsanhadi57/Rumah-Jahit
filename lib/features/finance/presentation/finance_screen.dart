@@ -155,6 +155,8 @@ class FinanceScreen extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 16),
+          _buildFilterChips(ref, colors),
+          const SizedBox(height: 16),
           _buildTransactionList(ref, transactionsAsync, colors, shrinkWrap: true, physics: const NeverScrollableScrollPhysics()),
           const SizedBox(height: 100),
         ],
@@ -288,6 +290,8 @@ class FinanceScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
+                _buildFilterChips(ref, colors),
+                const SizedBox(height: 16),
                 Expanded(child: _buildTransactionList(ref, transactionsAsync, colors, shrinkWrap: false, physics: const AlwaysScrollableScrollPhysics())),
               ],
             ),
@@ -567,6 +571,45 @@ class FinanceScreen extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+
+  Widget _buildFilterChips(WidgetRef ref, ColorScheme colors) {
+    final currentFilter = ref.watch(financeTypeFilterProvider);
+    
+    return Row(
+      children: [
+        _filterChip(ref, 'Semua', FinanceFilterType.all, currentFilter, colors),
+        const SizedBox(width: 8),
+        _filterChip(ref, 'Masuk', FinanceFilterType.income, currentFilter, colors),
+        const SizedBox(width: 8),
+        _filterChip(ref, 'Keluar', FinanceFilterType.expense, currentFilter, colors),
+      ],
+    );
+  }
+
+  Widget _filterChip(WidgetRef ref, String label, FinanceFilterType type, FinanceFilterType current, ColorScheme colors) {
+    final isSelected = type == current;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (val) {
+        if (val) ref.read(financeTypeFilterProvider.notifier).state = type;
+      },
+      selectedColor: colors.primary.withValues(alpha: 0.2),
+      labelStyle: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        color: isSelected ? colors.primary : Colors.grey.shade600,
+      ),
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: isSelected ? colors.primary : Colors.grey.shade200,
+        ),
+      ),
+      showCheckmark: false,
     );
   }
 

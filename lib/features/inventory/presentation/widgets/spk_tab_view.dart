@@ -72,6 +72,8 @@ class _SpkTabViewState extends ConsumerState<SpkTabView> {
     ColorScheme colors,
     List<ProductionOrder> orders,
   ) {
+    final isTablet = MediaQuery.of(context).size.width > 768;
+
     // Filter by sub-tab: 0=Personal, 1=Pesanan(Custom), 2=Stok(Restock)
     final filteredOrders = _selectedSubTab == 0
         ? orders.where((o) => o.isPersonal).toList()
@@ -92,50 +94,39 @@ class _SpkTabViewState extends ConsumerState<SpkTabView> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 140),
       children: [
-        // Grid 2x2 Metrics
-        Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: AppMetricCard(
-                    label: 'TOTAL AKTIF',
-                    value: activeOrders.length.toString(),
-                    icon: Icons.assignment_outlined,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: AppMetricCard(
-                    label: 'PROSES',
-                    value: inProgressOrders.length.toString(),
-                    icon: Icons.pending_actions,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: AppMetricCard(
-                    label: 'PENDING',
-                    value: pendingOrders.length.toString(),
-                    icon: Icons.hourglass_empty,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: AppMetricCard(
-                    label: 'SELESAI',
-                    value: completedOrders.length.toString(),
-                    icon: Icons.check_circle_outline,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        // Grid 2x2 Metrics (Mobile) or 1x4 Metrics (Tablet)
+        if (isTablet)
+          Row(
+            children: [
+              Expanded(child: _buildMetricCard('TOTAL AKTIF', activeOrders.length.toString(), Icons.assignment_outlined)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildMetricCard('PROSES', inProgressOrders.length.toString(), Icons.pending_actions)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildMetricCard('PENDING', pendingOrders.length.toString(), Icons.hourglass_empty)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildMetricCard('SELESAI', completedOrders.length.toString(), Icons.check_circle_outline)),
+            ],
+          )
+        else
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _buildMetricCard('TOTAL AKTIF', activeOrders.length.toString(), Icons.assignment_outlined)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildMetricCard('PROSES', inProgressOrders.length.toString(), Icons.pending_actions)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _buildMetricCard('PENDING', pendingOrders.length.toString(), Icons.hourglass_empty)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildMetricCard('SELESAI', completedOrders.length.toString(), Icons.check_circle_outline)),
+                ],
+              ),
+            ],
+          ),
         const SizedBox(height: 24),
 
         // ── Sub-tab Toggle: Personal / Pesanan / Stok ──
@@ -173,231 +164,275 @@ class _SpkTabViewState extends ConsumerState<SpkTabView> {
         const SizedBox(height: 20),
 
         // Search Bar
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 48,
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: _selectedSubTab == 0
-                        ? 'Cari nama pelanggan...'
-                        : _selectedSubTab == 1
-                            ? 'Cari pesanan produksi...'
-                            : 'Cari SPK stok...',
-                    hintStyle: GoogleFonts.inter(
-                      color: Colors.grey.shade500,
-                      fontSize: 13,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: Colors.grey.shade500,
-                      size: 20,
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF2F4F4),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              height: 48,
-              width: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF2F4F4),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.filter_list, color: Colors.black87),
-            ),
-          ],
-        ),
+        if (isTablet)
+          Row(
+            children: [
+              Expanded(flex: 3, child: _buildSearchBar()),
+              const SizedBox(width: 16),
+              _buildFilterButton(),
+            ],
+          )
+        else
+          Column(
+            children: [
+              _buildSearchBar(),
+              const SizedBox(height: 12),
+              _buildFilterButton(fullWidth: true),
+            ],
+          ),
         const SizedBox(height: 24),
 
         // SPK Cards
         if (filteredOrders.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40),
-              child: Column(
-                children: [
-                  Icon(
-                    _selectedSubTab == 0
-                        ? Icons.person_outline
-                        : _selectedSubTab == 1
-                            ? Icons.storefront_outlined
-                            : Icons.inventory_2_outlined,
-                    size: 64,
-                    color: Colors.grey.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _selectedSubTab == 0
-                        ? 'Belum ada pesanan personal'
-                        : _selectedSubTab == 1
-                            ? 'Belum ada pesanan produksi'
-                            : 'Belum ada SPK stok',
-                    style: GoogleFonts.inter(
-                      color: Colors.grey.shade500,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
+          _buildEmptyState()
+        else if (isTablet)
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 500,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              mainAxisExtent: 180, // Approximate height
             ),
+            itemCount: filteredOrders.length,
+            itemBuilder: (context, index) {
+              return _buildOrderCard(context, filteredOrders[index]);
+            },
           )
         else
-          ...filteredOrders.map((order) {
-            Color statusColor;
-            Color statusTextColor;
-            String statusLabel;
-
-            switch (order.status) {
-              case 'COMPLETED':
-                statusColor = const Color(0xFFA4F0E9);
-                statusTextColor = const Color(0xFF004D4C);
-                statusLabel = 'SELESAI';
-                break;
-              case 'IN_PROGRESS':
-                statusColor = const Color.fromARGB(255, 205, 234, 129);
-                statusTextColor = const Color(0xFF004D4C);
-                statusLabel = 'PROSES';
-                break;
-              default:
-                statusColor = const Color(0xFFCBE7F5);
-                statusTextColor = const Color(0xFF1E40AF);
-                statusLabel = 'TERJADWAL';
-            }
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: GestureDetector(
-                onTap: () {
-                  context.go('/inventory/spk-detail', extra: order.id);
-                },
-                child: InventorySpkCard(
-                  id: order.id,
-                  date: _formatDate(order.createdAt),
-                  title: order.title,
-                  status: statusLabel,
-                  statusColor: statusColor,
-                  statusTextColor: statusTextColor,
-                  progress: order.progressPercent,
-                  progressBarColor: order.isCompleted
-                      ? const Color(0xFF004D4C)
-                      : order.progressPercent > 0.8
-                      ? Colors.red.shade700
-                      : const Color(0xFF004D4C),
-                  bottomLeftWidget: Row(
-                    children: [
-                      // Type badge
-                      Builder(builder: (_) {
-                        String badgeLabel;
-                        Color badgeBg;
-                        Color badgeFg;
-                        if (order.isPersonal) {
-                          badgeLabel = 'Personal';
-                          badgeBg = Colors.amber.shade50;
-                          badgeFg = Colors.amber.shade800;
-                        } else if (order.isCustom) {
-                          badgeLabel = 'Pesanan';
-                          badgeBg = Colors.orange.shade50;
-                          badgeFg = Colors.orange.shade800;
-                        } else {
-                          badgeLabel = 'Stok';
-                          badgeBg = const Color(0xFFE0F2F1);
-                          badgeFg = const Color(0xFF004D4C);
-                        }
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: badgeBg,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            badgeLabel,
-                            style: GoogleFonts.inter(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: badgeFg,
-                            ),
-                          ),
-                        );
-                      }),
-                      const SizedBox(width: 8),
-                      // Customer name or tailor info
-                      if (order.isPersonal &&
-                          order.customerName != null &&
-                          order.customerName!.isNotEmpty) ...[
-                        Icon(
-                          Icons.person_outline,
-                          size: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            order.customerName!,
-                            style: GoogleFonts.inter(
-                              color: Colors.grey.shade600,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (order.pickupDate != null) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            '• ${DateFormat('dd MMM').format(order.pickupDate!)}',
-                            style: GoogleFonts.inter(
-                              color: Colors.grey.shade500,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ] else ...[
-                        Icon(
-                          order.isCompleted
-                              ? Icons.check_circle
-                              : Icons.people_outline,
-                          size: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          order.isCompleted
-                              ? 'QC PASSED'
-                              : '${order.tailorAssignments.length} Penjahit',
-                          style: GoogleFonts.inter(
-                            color: order.isCompleted
-                                ? const Color(0xFF004D4C)
-                                : Colors.grey.shade600,
-                            fontSize: 10,
-                            fontWeight: order.isCompleted
-                                ? FontWeight.w800
-                                : FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }),
+          ...filteredOrders.map((order) => _buildOrderCard(context, order)),
       ],
     );
   }
+
+  Widget _buildMetricCard(String label, String value, IconData icon) {
+    return AppMetricCard(
+      label: label,
+      value: value,
+      icon: icon,
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return SizedBox(
+      height: 48,
+      child: TextField(
+        decoration: InputDecoration(
+          hintText: _selectedSubTab == 0
+              ? 'Cari nama pelanggan...'
+              : _selectedSubTab == 1
+                  ? 'Cari pesanan produksi...'
+                  : 'Cari SPK stok...',
+          hintStyle: GoogleFonts.inter(
+            color: Colors.grey.shade500,
+            fontSize: 13,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: Colors.grey.shade500,
+            size: 20,
+          ),
+          filled: true,
+          fillColor: const Color(0xFFF2F4F4),
+          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterButton({bool fullWidth = false}) {
+    return Container(
+      height: 48,
+      width: fullWidth ? double.infinity : 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F4F4),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: fullWidth 
+        ? Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.filter_list, color: Colors.black87),
+              const SizedBox(width: 8),
+              Text('Filter', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            ],
+          )
+        : const Icon(Icons.filter_list, color: Colors.black87),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        child: Column(
+          children: [
+            Icon(
+              _selectedSubTab == 0
+                  ? Icons.person_outline
+                  : _selectedSubTab == 1
+                      ? Icons.storefront_outlined
+                      : Icons.inventory_2_outlined,
+              size: 64,
+              color: Colors.grey.shade300,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _selectedSubTab == 0
+                  ? 'Belum ada pesanan personal'
+                  : _selectedSubTab == 1
+                      ? 'Belum ada pesanan produksi'
+                      : 'Belum ada SPK stok',
+              style: GoogleFonts.inter(
+                color: Colors.grey.shade500,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(BuildContext context, ProductionOrder order) {
+    Color statusColor;
+    Color statusTextColor;
+    String statusLabel;
+
+    switch (order.status) {
+      case 'COMPLETED':
+        statusColor = const Color(0xFFA4F0E9);
+        statusTextColor = const Color(0xFF004D4C);
+        statusLabel = 'SELESAI';
+        break;
+      case 'IN_PROGRESS':
+        statusColor = const Color.fromARGB(255, 205, 234, 129);
+        statusTextColor = const Color(0xFF004D4C);
+        statusLabel = 'PROSES';
+        break;
+      default:
+        statusColor = const Color(0xFFCBE7F5);
+        statusTextColor = const Color(0xFF1E40AF);
+        statusLabel = 'TERJADWAL';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: GestureDetector(
+        onTap: () {
+          context.go('/inventory/spk-detail', extra: order.id);
+        },
+        child: InventorySpkCard(
+          id: order.id,
+          date: _formatDate(order.createdAt),
+          title: order.title,
+          status: statusLabel,
+          statusColor: statusColor,
+          statusTextColor: statusTextColor,
+          progress: order.progressPercent,
+          progressBarColor: order.isCompleted
+              ? const Color(0xFF004D4C)
+              : order.progressPercent > 0.8
+                  ? Colors.red.shade700
+                  : const Color(0xFF004D4C),
+          bottomLeftWidget: Row(
+            children: [
+              // Type badge
+              Builder(builder: (_) {
+                String badgeLabel;
+                Color badgeBg;
+                Color badgeFg;
+                if (order.isPersonal) {
+                  badgeLabel = 'Personal';
+                  badgeBg = Colors.amber.shade50;
+                  badgeFg = Colors.amber.shade800;
+                } else if (order.isCustom) {
+                  badgeLabel = 'Pesanan';
+                  badgeBg = Colors.orange.shade50;
+                  badgeFg = Colors.orange.shade800;
+                } else {
+                  badgeLabel = 'Stok';
+                  badgeBg = const Color(0xFFE0F2F1);
+                  badgeFg = const Color(0xFF004D4C);
+                }
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    badgeLabel,
+                    style: GoogleFonts.inter(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: badgeFg,
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(width: 8),
+              // Customer name or tailor info
+              if (order.isPersonal && order.customerName != null && order.customerName!.isNotEmpty) ...[
+                Icon(
+                  Icons.person_outline,
+                  size: 14,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    order.customerName!,
+                    style: GoogleFonts.inter(
+                      color: Colors.grey.shade600,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (order.pickupDate != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '• ${DateFormat('dd MMM').format(order.pickupDate!)}',
+                    style: GoogleFonts.inter(
+                      color: Colors.grey.shade500,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ] else ...[
+                Icon(
+                  order.isCompleted ? Icons.check_circle : Icons.people_outline,
+                  size: 14,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  order.isCompleted ? 'QC PASSED' : '${order.tailorAssignments.length} Penjahit',
+                  style: GoogleFonts.inter(
+                    color: order.isCompleted ? const Color(0xFF004D4C) : Colors.grey.shade600,
+                    fontSize: 10,
+                    fontWeight: order.isCompleted ? FontWeight.w800 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildSubTab({
     required int index,

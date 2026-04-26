@@ -113,7 +113,11 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeroCard(BuildContext context, AsyncValue<double> revenueAsync, ColorScheme colors) {
+  Widget _buildHeroCard(
+    BuildContext context,
+    AsyncValue<double> revenueAsync,
+    ColorScheme colors,
+  ) {
     return InkWell(
       onTap: () => context.go('/dashboard/finance'),
       borderRadius: BorderRadius.circular(20),
@@ -205,7 +209,9 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildLowStock(
-      AsyncValue<List<dynamic>> lowStockAsync, ColorScheme colors) {
+    AsyncValue<List<dynamic>> lowStockAsync,
+    ColorScheme colors,
+  ) {
     return lowStockAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),
@@ -291,8 +297,11 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRecentSpk(BuildContext context,
-      AsyncValue<List<dynamic>> recentSpkAsync, ColorScheme colors) {
+  Widget _buildRecentSpk(
+    BuildContext context,
+    AsyncValue<List<dynamic>> recentSpkAsync,
+    ColorScheme colors,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -417,8 +426,11 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRecentTx(BuildContext context,
-      AsyncValue<List<dynamic>> recentTxAsync, ColorScheme colors) {
+  Widget _buildRecentTx(
+    BuildContext context,
+    AsyncValue<List<dynamic>> recentTxAsync,
+    ColorScheme colors,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -501,4 +513,3 @@ class DashboardScreen extends ConsumerWidget {
     return '${date.day}/${date.month}, $hour:$minute';
   }
 }
-

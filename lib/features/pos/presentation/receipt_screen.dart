@@ -49,21 +49,25 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
 
       // Ensure rendering finishes
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       // 1. Capture Image of the Receipt Widget
-      RenderRepaintBoundary? boundary = _receiptKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      
+      RenderRepaintBoundary? boundary =
+          _receiptKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
+
       if (boundary == null) {
         throw Exception("Gagal merender struk.");
       }
-      
+
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      
+      ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+
       if (byteData == null) {
         throw Exception("Gagal memproses gambar struk.");
       }
-      
+
       Uint8List pngBytes = byteData.buffer.asUint8List();
 
       // 2. Save Image File
@@ -121,7 +125,9 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
       }
       buffer.writeln('💰 *TOTAL BAYAR: ${tx.formattedGrandTotal}*');
       buffer.writeln('━━━━━━━━━━━━━━━━━━');
-      buffer.writeln('Status: ${tx.status == 'SUCCESSFUL' ? '✅ Lunas' : '⏳ Menunggu Pelunasan'}');
+      buffer.writeln(
+        'Status: ${tx.status == 'SUCCESS' || tx.status == 'SUCCESSFUL' ? '✅ Lunas' : '⏳ Menunggu Pelunasan'}',
+      );
       buffer.writeln('');
       buffer.writeln(
         '_"Ketelitian di setiap jahitan. Terima kasih telah mempercayakan busana Anda kepada Rumah Jahit Alya."_',
@@ -135,7 +141,6 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
           title: 'Struk RJA - ${tx.formattedId}',
         ),
       );
-      
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -197,464 +202,503 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  // Pending banner
-                  if (isPending || (hasCustom && !allSpksCompleted))
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.amber.shade200),
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      _buildStatusBanner(
+                        isPending,
+                        hasCustom,
+                        allSpksCompleted,
+                        completedSpks,
+                        totalSpks,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.schedule,
-                            color: Colors.amber.shade800,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Menunggu Pengerjaan',
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    color: Colors.amber.shade900,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  hasCustom
-                                      ? '$completedSpks/$totalSpks SPK selesai. Lanjutkan proses di tab Inventory.'
-                                      : 'Pesanan sedang dalam proses',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    color: Colors.amber.shade700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // Main receipt card wrapped in RepaintBoundary to capture receipt screenshot
-                  RepaintBoundary(
-                    key: _receiptKey,
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                        // -- LOGO & HEADER --
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF004D4C),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Icon(
-                            Icons.checkroom,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Rumah Jahit Alya',
-                          style: GoogleFonts.manrope(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF003D3D),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildDottedLine(),
-                        const SizedBox(height: 24),
-
-                        // -- TXN ID & DATE --
-                        Text(
-                          tx.formattedId,
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF001F1F),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat(
-                            'MMM dd, yyyy • HH:mm',
-                          ).format(tx.createdAt).toUpperCase(),
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-
-                        // -- Customer name if exists --
-                        if (tx.customerName != null &&
-                            tx.customerName!.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'a/n ${tx.customerName}',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.amber.shade900,
-                              ),
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 32),
-
-                        // -- STOCK ITEMS SECTION --
-                        if (stockItems.isNotEmpty) ...[
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.inventory_2_outlined,
-                                size: 14,
-                                color: Colors.grey.shade500,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'BARANG STOK',
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.grey.shade500,
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          ...stockItems.map((item) => _buildItemRow(item)),
-                          if (hasCustom)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: _buildDottedLine(),
-                            ),
-                        ],
-
-                        // -- CUSTOM ITEMS SECTION --
-                        if (hasCustom) ...[
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.content_cut,
-                                size: 14,
-                                color: Colors.amber.shade700,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'PESANAN PERSONAL${tx.customerName != null ? " (${tx.customerName})" : ""}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.amber.shade700,
-                                    letterSpacing: 1.0,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          ...customItems.map(
-                            (item) => _buildItemRow(item, isCustom: true),
-                          ),
-                          if (tx.pickupDate != null) ...[
-                            const SizedBox(height: 8),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF2F4F4),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today,
-                                    size: 13,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Est. Pengambilan: ${DateFormat('dd MMMM yyyy').format(tx.pickupDate!)}',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-
-                        // -- Items fallback (no custom/stock separation for old data) --
-                        if (stockItems.isEmpty && customItems.isEmpty)
-                          ...tx.items.map((item) => _buildItemRow(item)),
-
-                        const SizedBox(height: 24),
-
-                        // -- TOTALS --
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Subtotal',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            Text(
-                              formatCurrency(tx.subtotal),
-                              style: GoogleFonts.manrope(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                                color: const Color(0xFF001F1F),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (tx.discount > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Diskon',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                Text(
-                                  '-${formatCurrency(tx.discount)}',
-                                  style: GoogleFonts.manrope(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                    color: Colors.red.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'TOTAL AMOUNT',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF004D4C),
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                            Text(
-                              tx.formattedGrandTotal,
-                              style: GoogleFonts.manrope(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 18,
-                                color: const Color(0xFF004D4C),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
-                        // -- PAYMENT INFO BOX --
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF2F4F4),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              _infoRow(
-                                'Payment Method',
-                                tx.paymentMethod == 'CASH'
-                                    ? 'Tunai'
-                                    : tx.paymentMethod,
-                              ),
-                              const SizedBox(height: 12),
-                              _infoRow('Paid', formatCurrency(tx.amountPaid)),
-                              const SizedBox(height: 12),
-                              _infoRow(
-                                'Change',
-                                formatCurrency(tx.change),
-                                isGreen: true,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-
-                        // -- SLOGAN --
-                        Text(
-                          '"Precision in every stitch. Thank you for choosing Rumah Jahit Alya."',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
-        ],
-      ),
-
-      // -- BOTTOM ACTION BAR --
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(color: Color(0xFFF9FAFA)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Fallback completion button if auto-complete failed/pending
-              if (isPending && hasCustom && allSpksCompleted) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      await ref
-                          .read(transactionRepositoryProvider)
-                          .updateStatus(tx.id, 'SUCCESSFUL');
-                    },
-                    icon: const Icon(Icons.check_circle),
-                    label: Text(
-                      'Selesaikan Pesanan',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: const Color(0xFF003D3D),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                      _buildReceiptCard(tx, stockItems, customItems, hasCustom),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _simulateAction('Print Thermal'),
-                      icon: const Icon(Icons.print, size: 20),
-                      label: Text(
-                        'Print\nReceipt',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        backgroundColor: const Color(0xFF004D4C),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isSharing ? null : _shareViaWhatsApp,
-                      icon: _isSharing 
-                          ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.share, size: 20),
-                      label: Text(
-                        _isSharing ? 'Memproses...' : 'Share',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        backgroundColor: const Color(0xFF25D366),
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey.shade400,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: _isSharing ? 0 : 2,
-                      ),
-                    ),
-                  ),
-                ],
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
             ],
           ),
         ),
       ),
+      bottomNavigationBar: SafeArea(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                width: MediaQuery.of(context).size.width,
+                decoration: const BoxDecoration(color: Color(0xFFF9FAFA)),
+                child: _buildActionButtons(tx, isPending, hasCustom),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBanner(
+    bool isPending,
+    bool hasCustom,
+    bool allSpksCompleted,
+    int completedSpks,
+    int totalSpks,
+  ) {
+    if (!isPending && (!hasCustom || allSpksCompleted))
+      return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.schedule, color: Colors.amber.shade800, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Menunggu Pengerjaan',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  hasCustom
+                      ? '$completedSpks/$totalSpks SPK selesai. Lanjutkan proses di tab gudang.'
+                      : 'Pesanan sedang dalam proses',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: Colors.amber.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptCard(
+    TransactionModel tx,
+    List<TransactionItem> stockItems,
+    List<TransactionItem> customItems,
+    bool hasCustom,
+  ) {
+    return RepaintBoundary(
+      key: _receiptKey,
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            // -- LOGO & HEADER --
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFF004D4C),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.checkroom, color: Colors.white, size: 28),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Rumah Jahit Alya',
+              style: GoogleFonts.manrope(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF003D3D),
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildDottedLine(),
+            const SizedBox(height: 24),
+
+            // -- TXN ID & DATE --
+            Text(
+              tx.formattedId,
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF001F1F),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              DateFormat(
+                'MMM dd, yyyy • HH:mm',
+              ).format(tx.createdAt).toUpperCase(),
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade500,
+              ),
+            ),
+
+            // -- Customer name if exists --
+            if (tx.customerName != null && tx.customerName!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'a/n ${tx.customerName}',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 32),
+
+            // -- STOCK ITEMS SECTION --
+            if (stockItems.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: 14,
+                    color: Colors.grey.shade500,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'BARANG STOK',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.grey.shade500,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...stockItems.map((item) => _buildItemRow(item)),
+              if (hasCustom)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: _buildDottedLine(),
+                ),
+            ],
+
+            // -- CUSTOM ITEMS SECTION --
+            if (hasCustom) ...[
+              Row(
+                children: [
+                  Icon(
+                    Icons.content_cut,
+                    size: 14,
+                    color: Colors.amber.shade700,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'PESANAN PERSONAL${tx.customerName != null ? " (${tx.customerName})" : ""}',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.amber.shade700,
+                        letterSpacing: 1.0,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...customItems.map((item) => _buildItemRow(item, isCustom: true)),
+              if (tx.pickupDate != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F4F4),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Est. Pengambilan: ${DateFormat('dd MMMM yyyy').format(tx.pickupDate!)}',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+
+            // -- Items fallback (no custom/stock separation for old data) --
+            if (stockItems.isEmpty && customItems.isEmpty)
+              ...tx.items.map((item) => _buildItemRow(item)),
+
+            const SizedBox(height: 24),
+
+            // -- TOTALS --
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Subtotal',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                Text(
+                  formatCurrency(tx.subtotal),
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    color: const Color(0xFF001F1F),
+                  ),
+                ),
+              ],
+            ),
+            if (tx.discount > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Diskon',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    Text(
+                      '-${formatCurrency(tx.discount)}',
+                      style: GoogleFonts.manrope(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: Colors.red.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'TOTAL AMOUNT',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF004D4C),
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                Text(
+                  tx.formattedGrandTotal,
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: const Color(0xFF004D4C),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // -- PAYMENT INFO BOX --
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F4F4),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _infoRow(
+                    'Payment Method',
+                    tx.paymentMethod == 'CASH' ? 'Tunai' : tx.paymentMethod,
+                  ),
+                  const SizedBox(height: 12),
+                  _infoRow('Paid', formatCurrency(tx.amountPaid)),
+                  const SizedBox(height: 12),
+                  _infoRow(
+                    tx.change >= 0 ? 'Change' : 'Sisa Kurang',
+                    formatCurrency(tx.change >= 0 ? tx.change : -tx.change),
+                    isGreen: tx.change >= 0,
+                    isOrange: tx.change < 0,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // -- SLOGAN --
+            Text(
+              '"Precision in every stitch. Thank you for choosing Rumah Jahit Alya."',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(
+    TransactionModel tx,
+    bool isPending,
+    bool hasCustom,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Completion button for custom orders (Pelunasan dan Pengambilan)
+        if (isPending && hasCustom) ...[
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                await ref
+                    .read(transactionRepositoryProvider)
+                    .updateStatusAndAmountPaid(tx.id, 'SUCCESS', tx.grandTotal);
+              },
+              icon: const Icon(Icons.check_circle),
+              label: Text(
+                'Pelunasan dan Pengambilan',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: const Color(0xFF003D3D),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _simulateAction('Print Thermal'),
+                icon: const Icon(Icons.print, size: 20),
+                label: Text(
+                  'Print\nReceipt',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  backgroundColor: const Color(0xFF004D4C),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _isSharing ? null : _shareViaWhatsApp,
+                icon: _isSharing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.share, size: 20),
+                label: Text(
+                  _isSharing ? 'Memproses...' : 'Share',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade400,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: _isSharing ? 0 : 2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -725,7 +769,12 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
     );
   }
 
-  Widget _infoRow(String label, String value, {bool isGreen = false}) {
+  Widget _infoRow(
+    String label,
+    String value, {
+    bool isGreen = false,
+    bool isOrange = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -738,7 +787,11 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
           style: GoogleFonts.manrope(
             fontWeight: FontWeight.w800,
             fontSize: 14,
-            color: isGreen ? const Color(0xFF006766) : const Color(0xFF001F1F),
+            color: isGreen
+                ? const Color(0xFF006766)
+                : isOrange
+                ? Colors.orange.shade800
+                : const Color(0xFF001F1F),
           ),
         ),
       ],

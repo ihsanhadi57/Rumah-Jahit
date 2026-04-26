@@ -1,0 +1,16 @@
+- [x] Update `TailorAssignment` and `ProductionOrder` domain models:
+  - Remove `piecesCount` from `TailorAssignment`.
+  - Add `completedPieces` to `TailorAssignment`.
+  - Create `ProductionReport` class and add `reports` list to `ProductionOrder`.
+- [x] Update `ProductionOrderRepository`:
+  - `add`: Fix legacy tailor assignments (piecesCount default to 0 during deserialization if needed).
+  - Implement `reportDailyProduction` batch operation (Add to SPK reports, Update SPK completion, increment `current_stock` in products, insert to `payroll_records`).
+- [x] Update `AddSpkForm` UI:
+  - Remove pieces allocation logic when selecting tailors.
+  - Simplify tailor selection to just checkboxes/chips.
+- [ ] Update `SpkDetailScreen` UI:
+  - Modify Tailor section to show `completedPieces` without target allocations.
+  - Add `Riwayat Setoran` (Report history) section.
+  - Revamp "Catat Hasil Produksi" dialog to take Tailor, Size (if restock), and Qty, then trigger `reportDailyProduction`.
+  - Fix/Improve progress bar UI to reflect remaining tasks without hard errors.
+- [ ] Ensure backward compatibility with older SPKs that didn't have `reports` array or used `piecesCount`.

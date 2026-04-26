@@ -97,6 +97,7 @@ class _TransactionHistoryScreenState
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final transactionsAsync = ref.watch(allTransactionsProvider);
+    final isTablet = MediaQuery.of(context).size.width > 768;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFA),
@@ -169,74 +170,30 @@ class _TransactionHistoryScreenState
       ),
       body: Column(
         children: [
-          // Search Bar
+          // Search and Filter Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Cari ID Pesanan...',
-                hintStyle: GoogleFonts.inter(
-                  color: Colors.grey.shade400,
-                  fontSize: 13,
-                ),
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: Colors.grey.shade500,
-                  size: 20,
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade200,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-
-          // Filters
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: _filters.map((filter) {
-                final isSelected = filter == _selectedFilter;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedFilter = filter),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: isTablet
+                ? Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _buildSearchBar(),
                       ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFF004D4C)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: isSelected
-                            ? null
-                            : Border.all(color: Colors.grey.shade200),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 5,
+                        child: _buildFilterChips(),
                       ),
-                      child: Text(
-                        filter,
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                          color: isSelected
-                              ? Colors.white
-                              : Colors.grey.shade600,
-                        ),
-                      ),
-                    ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      _buildSearchBar(),
+                      const SizedBox(height: 16),
+                      _buildFilterChips(),
+                    ],
                   ),
-                );
-              }).toList(),
-            ),
           ),
           const SizedBox(height: 16),
 
@@ -247,6 +204,7 @@ class _TransactionHistoryScreenState
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (allData) {
                 final data = allData.where(_passesFilter).toList();
+                final isTablet = MediaQuery.of(context).size.width > 768;
 
                 if (data.isEmpty) {
                   return Center(
@@ -257,6 +215,23 @@ class _TransactionHistoryScreenState
                         fontSize: 14,
                       ),
                     ),
+                  );
+                }
+
+                if (isTablet) {
+                  return GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 500,
+                      mainAxisSpacing: 20,
+                      crossAxisSpacing: 20,
+                      mainAxisExtent: 320, // Approximate height for the card
+                    ),
+                    itemCount: data.length,
+                    itemBuilder: (context, index) {
+                      final tx = data[index];
+                      return _buildTransactionCard(tx, colors.primary);
+                    },
                   );
                 }
 
@@ -274,6 +249,68 @@ class _TransactionHistoryScreenState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return TextField(
+      controller: _searchController,
+      onChanged: _onSearchChanged,
+      decoration: InputDecoration(
+        hintText: 'Cari ID Pesanan...',
+        hintStyle: GoogleFonts.inter(
+          color: Colors.grey.shade400,
+          fontSize: 13,
+        ),
+        prefixIcon: Icon(
+          Icons.search,
+          color: Colors.grey.shade500,
+          size: 20,
+        ),
+        filled: true,
+        fillColor: Colors.grey.shade200,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _filters.map((filter) {
+          final isSelected = filter == _selectedFilter;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedFilter = filter),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF004D4C) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: isSelected ? null : Border.all(color: Colors.grey.shade200),
+                ),
+                child: Text(
+                  filter,
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: isSelected ? Colors.white : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

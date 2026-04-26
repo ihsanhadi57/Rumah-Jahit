@@ -22,10 +22,18 @@ import '../../features/finance/presentation/finance_screen.dart';
 
 // Kunci navigasi global
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
-final _sectionANavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'sectionANav');
-final _sectionBNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'sectionBNav');
-final _sectionCNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'sectionCNav');
-final _sectionDNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'sectionDNav');
+final _sectionANavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'sectionANav',
+);
+final _sectionBNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'sectionBNav',
+);
+final _sectionCNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'sectionCNav',
+);
+final _sectionDNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'sectionDNav',
+);
 
 final goRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
@@ -48,10 +56,7 @@ final goRouter = GoRouter(
   },
   routes: <RouteBase>[
     // Auth route
-    GoRoute(
-      path: '/auth',
-      builder: (context, state) => const AuthScreen(),
-    ),
+    GoRoute(path: '/auth', builder: (context, state) => const AuthScreen()),
     // Activation pending route
     GoRoute(
       path: '/activation-pending',
@@ -125,7 +130,8 @@ final goRouter = GoRouter(
                     return ProductDetailScreen(
                       productName: extra['name'] as String,
                       productType: extra['type'] as String,
-                      schoolLevels: extra['schoolLevels'] as List<String>? ?? const [],
+                      schoolLevels:
+                          extra['schoolLevels'] as List<String>? ?? const [],
                     );
                   },
                 ),
