@@ -211,9 +211,23 @@ class ProductionOrderRepository {
     if (allCompleted && linkedSpks.docs.isNotEmpty) {
       final txCollection =
           FirebaseFirestore.instance.collection('transactions');
-      await txCollection.doc(transactionId).update({
-        'status': 'SUCCESSFUL',
-      });
+      final txDoc = await txCollection.doc(transactionId).get();
+      
+      if (txDoc.exists) {
+        final txData = txDoc.data()!;
+        final amountPaid = (txData['amount_paid'] as num?)?.toDouble() ?? 0.0;
+        final grandTotal = (txData['grand_total'] as num?)?.toDouble() ?? 0.0;
+
+        if (amountPaid >= grandTotal) {
+          await txCollection.doc(transactionId).update({
+            'status': 'SUCCESSFUL',
+          });
+        } else {
+          await txCollection.doc(transactionId).update({
+            'status': 'READY',
+          });
+        }
+      }
     }
   }
 

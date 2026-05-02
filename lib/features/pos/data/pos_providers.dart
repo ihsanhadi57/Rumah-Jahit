@@ -75,3 +75,9 @@ final allTransactionsProvider = StreamProvider<List<TransactionModel>>((ref) {
   final repo = ref.watch(transactionRepositoryProvider);
   return repo.watchAll();
 });
+
+final transactionStreamProvider =
+    StreamProvider.family<TransactionModel?, String>((ref, id) {
+      final repo = ref.watch(transactionRepositoryProvider);
+      return repo.watchById(id);
+    });

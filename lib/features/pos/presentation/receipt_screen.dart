@@ -126,7 +126,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
       buffer.writeln('💰 *TOTAL BAYAR: ${tx.formattedGrandTotal}*');
       buffer.writeln('━━━━━━━━━━━━━━━━━━');
       buffer.writeln(
-        'Status: ${tx.status == 'SUCCESS' || tx.status == 'SUCCESSFUL' ? '✅ Lunas' : '⏳ Menunggu Pelunasan'}',
+        'Status: ${tx.status == 'SUCCESSFUL' ? '✅ Lunas' : '⏳ Menunggu Pelunasan'}',
       );
       buffer.writeln('');
       buffer.writeln(
@@ -161,137 +161,174 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tx = widget.transaction;
-    final bool isPending = tx.status == 'PENDING';
-    final stockItems = tx.stockItems;
-    final customItems = tx.customOrderItems;
-    final hasCustom = customItems.isNotEmpty;
+    final txAsync = ref.watch(transactionStreamProvider(widget.transaction.id));
 
-    // Calculate SPK progress if this transaction has custom items
-    int totalSpks = 0;
-    int completedSpks = 0;
-    bool allSpksCompleted = false;
+    return txAsync.when(
+      data: (tx) {
+        if (tx == null) {
+          return const Scaffold(
+            body: Center(child: Text('Transaksi tidak ditemukan')),
+          );
+        }
 
-    if (hasCustom) {
-      final spkAsync = ref.watch(productionOrdersStreamProvider);
-      final relatedSpks =
-          spkAsync.value?.where((spk) => spk.transactionId == tx.id).toList() ??
-          [];
+        final bool isUnpaid = tx.status == 'PENDING' || tx.status == 'READY';
+        final stockItems = tx.stockItems;
+        final customItems = tx.customOrderItems;
+        final hasCustom = customItems.isNotEmpty;
 
-      totalSpks = relatedSpks.length;
-      completedSpks = relatedSpks.where((spk) => spk.isCompleted).length;
-      allSpksCompleted = totalSpks > 0 && completedSpks == totalSpks;
-    }
+        // Calculate SPK progress if this transaction has custom items
+        int totalSpks = 0;
+        int completedSpks = 0;
+        bool allSpksCompleted = false;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFA),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF9FAFA),
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Receipt',
-          style: GoogleFonts.manrope(
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF003D3D),
-            fontSize: 18,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF003D3D)),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500),
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    children: [
-                      _buildStatusBanner(
-                        isPending,
-                        hasCustom,
-                        allSpksCompleted,
-                        completedSpks,
-                        totalSpks,
-                      ),
-                      _buildReceiptCard(tx, stockItems, customItems, hasCustom),
-                    ],
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 120)),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 500),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                width: MediaQuery.of(context).size.width,
-                decoration: const BoxDecoration(color: Color(0xFFF9FAFA)),
-                child: _buildActionButtons(tx, isPending, hasCustom),
+        if (hasCustom) {
+          final spkAsync = ref.watch(productionOrdersStreamProvider);
+          final relatedSpks =
+              spkAsync.value
+                  ?.where((spk) => spk.transactionId == tx.id)
+                  .toList() ??
+              [];
+
+          totalSpks = relatedSpks.length;
+          completedSpks = relatedSpks.where((spk) => spk.isCompleted).length;
+          allSpksCompleted = totalSpks > 0 && completedSpks == totalSpks;
+        }
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF9FAFA),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFFF9FAFA),
+            scrolledUnderElevation: 0,
+            centerTitle: true,
+            title: Text(
+              'Detail Transaksi',
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF003D3D),
+                fontSize: 18,
               ),
             ),
-          ],
-        ),
-      ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Color(0xFF003D3D)),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        children: [
+                          _buildStatusBanner(
+                            isUnpaid,
+                            hasCustom,
+                            allSpksCompleted,
+                            completedSpks,
+                            totalSpks,
+                          ),
+                          _buildReceiptCard(
+                            tx,
+                            stockItems,
+                            customItems,
+                            hasCustom,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                ],
+              ),
+            ),
+          ),
+          bottomNavigationBar: SafeArea(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    width: MediaQuery.of(context).size.width,
+                    decoration: const BoxDecoration(color: Color(0xFFF9FAFA)),
+                    child: _buildActionButtons(
+                      tx,
+                      isUnpaid,
+                      hasCustom,
+                      allSpksCompleted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
     );
   }
 
   Widget _buildStatusBanner(
-    bool isPending,
+    bool isUnpaid,
     bool hasCustom,
     bool allSpksCompleted,
     int completedSpks,
     int totalSpks,
   ) {
-    if (!isPending && (!hasCustom || allSpksCompleted))
-      return const SizedBox.shrink();
+    if (!isUnpaid) return const SizedBox.shrink();
+
+    final bool isReady = allSpksCompleted;
 
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.amber.shade50,
+        color: isReady ? Colors.green.shade50 : Colors.amber.shade50,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.amber.shade200),
+        border: Border.all(
+          color: isReady ? Colors.green.shade200 : Colors.amber.shade200,
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.schedule, color: Colors.amber.shade800, size: 20),
+          Icon(
+            isReady ? Icons.check_circle_outline : Icons.schedule,
+            color: isReady ? Colors.green.shade800 : Colors.amber.shade800,
+            size: 20,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Menunggu Pengerjaan',
+                  isReady ? 'Pesanan Siap Diambil' : 'Dalam Pengerjaan',
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
-                    color: Colors.amber.shade900,
+                    color: isReady
+                        ? Colors.green.shade900
+                        : Colors.amber.shade900,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  hasCustom
-                      ? '$completedSpks/$totalSpks SPK selesai. Lanjutkan proses di tab gudang.'
-                      : 'Pesanan sedang dalam proses',
+                  isReady
+                      ? 'Produksi selesai. Silakan lakukan pelunasan untuk pengambilan.'
+                      : '$completedSpks/$totalSpks SPK selesai. Pantau progres di tab gudang.',
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    color: Colors.amber.shade700,
+                    color: isReady
+                        ? Colors.green.shade700
+                        : Colors.amber.shade700,
                   ),
                 ),
               ],
@@ -602,23 +639,41 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
 
   Widget _buildActionButtons(
     TransactionModel tx,
-    bool isPending,
+    bool isUnpaid,
     bool hasCustom,
+    bool allSpksCompleted,
   ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // Completion button for custom orders (Pelunasan dan Pengambilan)
-        if (isPending && hasCustom) ...[
+        if (isUnpaid && hasCustom) ...[
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () async {
-                await ref
-                    .read(transactionRepositoryProvider)
-                    .updateStatusAndAmountPaid(tx.id, 'SUCCESS', tx.grandTotal);
-              },
-              icon: const Icon(Icons.check_circle),
+              onPressed: !allSpksCompleted
+                  ? () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Barang belum selesai dikerjakan! Selesaikan SPK di gudang terlebih dahulu.',
+                          ),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  : () async {
+                      await ref
+                          .read(transactionRepositoryProvider)
+                          .updateStatusAndAmountPaid(
+                            tx.id,
+                            'SUCCESSFUL',
+                            tx.grandTotal,
+                          );
+                    },
+              icon: Icon(
+                allSpksCompleted ? Icons.check_circle : Icons.lock_outline,
+              ),
               label: Text(
                 'Pelunasan dan Pengambilan',
                 style: GoogleFonts.inter(
@@ -628,7 +683,9 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
               ),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: const Color(0xFF003D3D),
+                backgroundColor: allSpksCompleted
+                    ? const Color(0xFF003D3D)
+                    : Colors.grey.shade400,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

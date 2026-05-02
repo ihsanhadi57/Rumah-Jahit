@@ -96,7 +96,7 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
     'Celana',
     'Rok',
     'Jas',
-    'Lainnya',
+    'Perlengkapan Sekolah',
   ];
 
   static const List<String> _levels = [
@@ -246,7 +246,18 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
                               ),
                             )
                             .toList(),
-                        onChanged: (v) => setState(() => _selectedType = v!),
+                        onChanged: (v) {
+                          setState(() {
+                            _selectedType = v!;
+                            if (_selectedType == 'Perlengkapan Sekolah') {
+                              if (_sizeEntries.length > 1) {
+                                final first = _sizeEntries.first;
+                                _sizeEntries.clear();
+                                _sizeEntries.add(first);
+                              }
+                            }
+                          });
+                        },
                       ),
                     ),
                   ),
@@ -259,7 +270,9 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
                   ..._sizeEntries.asMap().entries.map((e) {
                     final idx = e.key;
                     final entry = e.value;
-                    final availableSizes = _getAvailableSizes(idx);
+                    final availableSizes = _selectedType == 'Perlengkapan Sekolah'
+                        ? ['All Size']
+                        : _getAvailableSizes(idx);
 
                     if (!availableSizes.contains(entry.selectedSize) &&
                         availableSizes.isNotEmpty) {
@@ -274,7 +287,7 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
                     );
                   }),
 
-                  if (_sizeEntries.length < _availableSizes.length)
+                  if (_sizeEntries.length < _availableSizes.length && _selectedType != 'Perlengkapan Sekolah')
                     TextButton.icon(
                       onPressed: () {
                         final available = _getAvailableSizes(
@@ -568,52 +581,54 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Size Dropdown
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ukuran',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF2F4F4),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: entry.selectedSize,
-                          isExpanded: true,
-                          icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                          items: availableSizes
-                              .map(
-                                (s) =>
-                                    DropdownMenuItem(value: s, child: Text(s)),
-                              )
-                              .toList(),
-                          onChanged: (v) =>
-                              setState(() => entry.selectedSize = v!),
+              if (_selectedType != 'Perlengkapan Sekolah') ...[
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ukuran',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Container(
+                        height: 48,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2F4F4),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: entry.selectedSize,
+                            isExpanded: true,
+                            icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                            items: availableSizes
+                                .map(
+                                  (s) =>
+                                      DropdownMenuItem(value: s, child: Text(s)),
+                                )
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => entry.selectedSize = v!),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 8),
+              ],
               // Price
               Expanded(
                 flex: 3,

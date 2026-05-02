@@ -32,6 +32,9 @@ class TransactionRepository {
     final productsCol = FirebaseFirestore.instance.collection('products');
     for (final item in items) {
       if (item.isCustom) continue;
+      // Skip service/addon items that don't have stock
+      if (item.productId == 'logo_service') continue;
+
       batch.update(productsCol.doc(item.productId), {
         'current_stock': FieldValue.increment(-item.quantity),
         'updated_at': FieldValue.serverTimestamp(),
@@ -158,6 +161,18 @@ class TransactionRepository {
           }
           return txs;
         });
+  }
+
+  /// Stream of a single transaction by ID
+  Stream<TransactionModel?> watchById(String id) {
+    return _collection.doc(id).snapshots().asyncMap((doc) async {
+      if (!doc.exists) return null;
+      final itemsSnapshot = await doc.reference.collection('items').get();
+      final items = itemsSnapshot.docs
+          .map((itemDoc) => TransactionItem.fromFirestore(itemDoc))
+          .toList();
+      return TransactionModel.fromFirestore(doc, items: items);
+    });
   }
 
   /// Update transaction status

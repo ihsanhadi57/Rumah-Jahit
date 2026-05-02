@@ -23,6 +23,8 @@ class _BarangJadiTabViewState extends ConsumerState<BarangJadiTabView> {
     'Lengan Pendek',
     'Celana',
     'Rok',
+    'Jas',
+    'Perlengkapan Sekolah',
   ];
 
   @override

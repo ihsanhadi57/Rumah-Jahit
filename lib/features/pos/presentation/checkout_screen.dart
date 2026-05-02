@@ -1002,7 +1002,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             quantity: 1,
             unitPrice: _logoPrice,
             totalPrice: _logoPrice,
-            isCustom: true,
+            isCustom: false,
           ),
       ];
 

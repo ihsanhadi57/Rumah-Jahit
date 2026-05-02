@@ -33,6 +33,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     'Lengan Pendek',
     'Celana',
     'Rok',
+    'Jas',
+    'Perlengkapan Sekolah',
   ];
 
   @override
