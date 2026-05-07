@@ -95,141 +95,144 @@ class _AddEmployeeFormState extends ConsumerState<AddEmployeeForm> {
 
     return Dialog(
       backgroundColor: Colors.white,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ── Header ──
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Tambah Karyawan',
-                        style: GoogleFonts.manrope(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: colors.primary,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Header ──
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Tambah Karyawan',
+                          style: GoogleFonts.manrope(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: colors.primary,
+                          ),
                         ),
                       ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Icon(Icons.close, color: Colors.grey.shade400),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // ── Foto Profil ──
-                _buildLabel('Foto Profil (Opsional)'),
-                const SizedBox(height: 8),
-                _buildImagePicker(colors),
-                const SizedBox(height: 20),
-
-                // ── Name Field ──
-                CustomTextField(
-                  controller: _nameController,
-                  label: 'Nama Lengkap',
-                  hint: 'Budi',
-                  icon: Icons.person_outline,
-                  textCapitalization: TextCapitalization.words,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty || v.length < 3)
-                      ? 'Nama karyawan wajib diisi'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-
-                // ── Phone Field ──
-                CustomTextField(
-                  controller: _phoneController,
-                  label: 'No. Telepon/WhatsApp',
-                  hint: '08123456789',
-                  icon: Icons.phone_outlined,
-                  keyboardType: TextInputType.phone,
-                  validator: (v) =>
-                      (v == null ||
-                          v.trim().isEmpty ||
-                          !RegExp(r'^[0-9]+$').hasMatch(v) ||
-                          v.length < 10 ||
-                          v.length > 15)
-                      ? 'No. Telepon/WhatsApp tidak valid'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-
-                // ── Role Field ──
-                _buildLabel('Posisi / Jabatan'),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2F4F4),
-                    borderRadius: BorderRadius.circular(12),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Icon(Icons.close, color: Colors.grey.shade400),
+                      ),
+                    ],
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedRole,
-                      isExpanded: true,
-                      icon: const Icon(Icons.keyboard_arrow_down),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'tailor',
-                          child: Text('Penjahit'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'cashier',
-                          child: Text('Kasir'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'admin',
-                          child: Text('Administrator'),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setState(() => _selectedRole = v);
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
+                  const SizedBox(height: 24),
 
-                // ── Navigation Buttons ──
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  // ── Foto Profil ──
+                  _buildLabel('Foto Profil (Opsional)'),
+                  const SizedBox(height: 8),
+                  _buildImagePicker(colors),
+                  const SizedBox(height: 20),
+
+                  // ── Name Field ──
+                  CustomTextField(
+                    controller: _nameController,
+                    label: 'Nama Lengkap',
+                    hint: 'Budi',
+                    icon: Icons.person_outline,
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty || v.length < 3)
+                        ? 'Nama karyawan wajib diisi'
+                        : null,
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
+                  const SizedBox(height: 16),
+
+                  // ── Phone Field ──
+                  CustomTextField(
+                    controller: _phoneController,
+                    label: 'No. Telepon/WhatsApp',
+                    hint: '08123456789',
+                    icon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                    validator: (v) =>
+                        (v == null ||
+                            v.trim().isEmpty ||
+                            !RegExp(r'^[0-9]+$').hasMatch(v) ||
+                            v.length < 10 ||
+                            v.length > 15)
+                        ? 'No. Telepon/WhatsApp tidak valid'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ── Role Field ──
+                  _buildLabel('Posisi / Jabatan'),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F4F4),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedRole,
+                        isExpanded: true,
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'tailor',
+                            child: Text('Penjahit'),
                           ),
-                        )
-                      : Text(
-                          'Simpan Karyawan',
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
+                          DropdownMenuItem(
+                            value: 'cashier',
+                            child: Text('Kasir'),
                           ),
-                        ),
-                ),
-              ],
+                          DropdownMenuItem(
+                            value: 'admin',
+                            child: Text('Administrator'),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => _selectedRole = v);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // ── Navigation Buttons ──
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Simpan Karyawan',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

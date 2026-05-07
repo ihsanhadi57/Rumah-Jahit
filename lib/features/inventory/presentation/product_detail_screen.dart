@@ -92,6 +92,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ),
         data: (allProducts) {
           // Filter to only this product's variants
+          const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL'];
           final variants = allProducts
               .where(
                 (p) =>
@@ -99,7 +100,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     p.type == widget.productType &&
                     p.schoolLevels.join('_') == widget.schoolLevels.join('_'),
               )
-              .toList();
+              .toList()
+            ..sort((a, b) {
+                final ai = sizeOrder.indexOf(a.size.toUpperCase());
+                final bi = sizeOrder.indexOf(b.size.toUpperCase());
+                final aIdx = ai == -1 ? sizeOrder.length : ai;
+                final bIdx = bi == -1 ? sizeOrder.length : bi;
+                return aIdx.compareTo(bIdx);
+              });
 
           if (variants.isEmpty) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -179,13 +187,35 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               const SizedBox(height: 20),
 
               // ── Product Info ──
-              Text(
-                '${first.name} - ${first.type}',
-                style: GoogleFonts.manrope(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF001F1F),
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${first.name} - ${first.type}',
+                      style: GoogleFonts.manrope(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF001F1F),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _showEditNameDialog(variants),
+                    icon: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.edit_outlined,
+                        size: 18,
+                        color: colors.primary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -612,7 +642,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     }
   }
 
-  // ── Edit Variant ──
+  // ── Edit Variant (Price & Stock) ──
   void _showEditDialog(Product variant) {
     final priceController = TextEditingController(
       text: 'Rp ${_formatNumber(variant.price.toInt())}',
@@ -628,7 +658,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          'Edit ${variant.name} - ${variant.size}',
+          'Edit Stok & Harga ${variant.size}',
           style: GoogleFonts.manrope(
             fontWeight: FontWeight.w800,
             fontSize: 18,
@@ -713,8 +743,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 price: newPrice,
                 currentStock: newStock,
               );
-
               await ref.read(productRepositoryProvider).update(updated);
+
               if (ctx.mounted) Navigator.pop(ctx);
             },
             style: ElevatedButton.styleFrom(
@@ -730,6 +760,144 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Edit Product Name & Type (Global for all sizes) ──
+  void _showEditNameDialog(List<Product> variants) {
+    final first = variants.first;
+    final nameController = TextEditingController(text: first.name);
+
+    final productTypes = [
+      'Lengan Panjang',
+      'Lengan Pendek',
+      'Celana',
+      'Rok',
+      'Jas',
+      'Perlengkapan Sekolah',
+    ];
+
+    String? selectedType = first.type;
+    // Ensure current type is in the list
+    if (!productTypes.contains(selectedType)) {
+      productTypes.add(selectedType);
+    }
+
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              'Edit Nama & Tipe',
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                color: const Color(0xFF003D3D),
+              ),
+            ),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    textCapitalization: TextCapitalization.words,
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                    decoration: InputDecoration(
+                      labelText: 'Nama Barang',
+                      labelStyle: GoogleFonts.inter(fontSize: 13),
+                      filled: true,
+                      fillColor: const Color(0xFFF2F4F4),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedType,
+                    style: GoogleFonts.inter(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Tipe',
+                      labelStyle: GoogleFonts.inter(fontSize: 13),
+                      filled: true,
+                      fillColor: const Color(0xFFF2F4F4),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    items: productTypes.map((type) {
+                      return DropdownMenuItem(
+                        value: type,
+                        child:
+                            Text(type, style: GoogleFonts.inter(fontSize: 14)),
+                      );
+                    }).toList(),
+                    onChanged: (v) {
+                      if (v != null) {
+                        setDialogState(() => selectedType = v);
+                      }
+                    },
+                    validator: (v) => (v == null) ? 'Wajib pilih tipe' : null,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child:
+                    Text('Batal', style: GoogleFonts.inter(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+
+                  final newName = nameController.text.trim();
+                  final newType = selectedType!;
+
+                  if (newName == first.name && newType == first.type) {
+                    Navigator.pop(ctx);
+                    return;
+                  }
+
+                  final repo = ref.read(productRepositoryProvider);
+                  for (final v in variants) {
+                    await repo.update(v.copyWith(name: newName, type: newType));
+                  }
+
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF004D4C),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Simpan',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

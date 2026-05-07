@@ -201,13 +201,23 @@ class _BarangJadiTabViewState extends ConsumerState<BarangJadiTabView> {
                 builder: (context, constraints) {
                   final isTablet = constraints.maxWidth >= 768;
                   
+                  const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL'];
                   final items = grouped.entries.map((entry) {
                     final groupProducts = entry.value;
                     final first = groupProducts.first;
                     final totalStock = groupProducts.fold(
                         0, (sum, p) => sum + p.currentStock);
+                    // Sort products by canonical size order
+                    final sortedProducts = List<Product>.from(groupProducts)
+                      ..sort((a, b) {
+                        final ai = sizeOrder.indexOf(a.size.toUpperCase());
+                        final bi = sizeOrder.indexOf(b.size.toUpperCase());
+                        final aIdx = ai == -1 ? sizeOrder.length : ai;
+                        final bIdx = bi == -1 ? sizeOrder.length : bi;
+                        return aIdx.compareTo(bIdx);
+                      });
                     final variants = <String, String>{};
-                    for (final p in groupProducts) {
+                    for (final p in sortedProducts) {
                       variants[p.size] = p.currentStock.toString();
                     }
 

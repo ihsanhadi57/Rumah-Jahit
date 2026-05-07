@@ -6,8 +6,10 @@ class UserRepository {
 
   /// Real-time stream of all users
   Stream<List<AppUser>> watchAll() {
-    return _collection.snapshots().map((snapshot) =>
-        snapshot.docs.map((doc) => AppUser.fromFirestore(doc)).toList());
+    return _collection.snapshots().map(
+      (snapshot) =>
+          snapshot.docs.map((doc) => AppUser.fromFirestore(doc)).toList(),
+    );
   }
 
   /// Stream of tailors only
@@ -15,17 +17,21 @@ class UserRepository {
     return _collection
         .where('role', isEqualTo: 'tailor')
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => AppUser.fromFirestore(doc)).toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => AppUser.fromFirestore(doc)).toList(),
+        );
   }
 
-  /// Stream of all employees (tailors + cashiers)
+  /// Stream of all employees (tailors + cashiers + admins)
   Stream<List<AppUser>> watchEmployees() {
     return _collection
-        .where('role', whereIn: ['tailor', 'cashier'])
+        .where('role', whereIn: ['tailor', 'cashier', 'admin'])
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => AppUser.fromFirestore(doc)).toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => AppUser.fromFirestore(doc)).toList(),
+        );
   }
 
   /// Get a single user by ID
