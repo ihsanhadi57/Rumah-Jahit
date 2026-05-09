@@ -105,14 +105,74 @@ class PayrollScreen extends ConsumerWidget {
                 const Divider(height: 16, color: Colors.black12),
             itemBuilder: (context, index) {
               final emp = employees[index];
-              return EmployeeListTile(
-                name: emp.name,
-                role: emp.roleDisplay,
-                avatarUrl: emp.imageUrl,
-                unpaidAmount: formatCurrency(emp.cashAdvanceBalance),
-                onTap: () {
-                  context.push('/payroll/detail', extra: emp);
+              return Dismissible(
+                key: Key(emp.id),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (direction) async {
+                  return await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: Text(
+                        'Hapus Karyawan?',
+                        style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                      ),
+                      content: Text(
+                        'Apakah Anda yakin ingin menghapus ${emp.name} dari daftar karyawan?',
+                        style: GoogleFonts.inter(),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: Text(
+                            'Batal',
+                            style: GoogleFonts.inter(color: Colors.grey),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: Text(
+                            'Hapus',
+                            style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                 },
+                onDismissed: (direction) {
+                  ref.read(userRepositoryProvider).delete(emp.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${emp.name} telah dihapus'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                },
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade400,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.delete_outline, color: Colors.white),
+                ),
+                child: EmployeeListTile(
+                  name: emp.name,
+                  role: emp.roleDisplay,
+                  avatarUrl: emp.imageUrl,
+                  unpaidAmount: formatCurrency(emp.cashAdvanceBalance),
+                  onTap: () {
+                    context.push('/payroll/detail', extra: emp);
+                  },
+                ),
               );
             },
           );

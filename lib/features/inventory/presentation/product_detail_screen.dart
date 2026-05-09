@@ -55,6 +55,8 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
+  bool _isPopping = false;
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -110,9 +112,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               });
 
           if (variants.isEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) Navigator.of(context).pop();
-            });
+            if (!_isPopping) {
+              _isPopping = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) Navigator.of(context).pop();
+              });
+            }
+            // Always return early — never access variants.first on empty list
             return const SizedBox.shrink();
           }
 
@@ -624,9 +630,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
       // Update all variants with new image URL
       final repo = ref.read(productRepositoryProvider);
-      for (final variant in variants) {
-        await repo.update(variant.copyWith(imageUrl: url));
-      }
+      await repo.updateBatch(
+        variants.map((v) => v.copyWith(imageUrl: url)).toList(),
+      );
 
       if (mounted) Navigator.of(context).pop(); // close loading
     } catch (e) {
@@ -877,9 +883,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   }
 
                   final repo = ref.read(productRepositoryProvider);
-                  for (final v in variants) {
-                    await repo.update(v.copyWith(name: newName, type: newType));
-                  }
+                  await repo.updateBatch(
+                    variants
+                        .map((v) => v.copyWith(name: newName, type: newType))
+                        .toList(),
+                  );
 
                   if (ctx.mounted) Navigator.pop(ctx);
                 },

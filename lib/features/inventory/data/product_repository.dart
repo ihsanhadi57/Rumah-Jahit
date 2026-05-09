@@ -40,6 +40,15 @@ class ProductRepository {
     await _collection.doc(product.id).update(product.toFirestore());
   }
 
+  /// Batch-update multiple products
+  Future<void> updateBatch(List<Product> products) async {
+    final batch = FirebaseFirestore.instance.batch();
+    for (final product in products) {
+      batch.update(_collection.doc(product.id), product.toFirestore());
+    }
+    await batch.commit();
+  }
+
   /// Delete a product by ID
   Future<void> delete(String id) async {
     await _collection.doc(id).delete();
