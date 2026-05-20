@@ -60,11 +60,10 @@ class SpkDetailScreen extends ConsumerWidget {
           ),
         ),
         actions: [
-          if (order.isPending)
-            IconButton(
-              icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
-              onPressed: () => _confirmDelete(context, ref, order),
-            ),
+          IconButton(
+            icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+            onPressed: () => _confirmDelete(context, ref, order),
+          ),
         ],
       ),
       body: ListView(
@@ -171,19 +170,20 @@ class SpkDetailScreen extends ConsumerWidget {
                 ...order.items.map(
                   (item) => DetailInfoRow(
                     label: 'Ukuran ${item.size}',
-                    value:
-                        '${item.completedQuantity} / ${item.targetQuantity} pcs',
+                    value: item.hasTarget
+                        ? '${item.completedQuantity} / ${item.targetQuantity} pcs'
+                        : '${item.completedQuantity} pcs',
                   ),
                 ),
-              DetailInfoRow(
-                label: 'Total Jumlah',
-                value: '${order.targetQuantity} pcs',
-              ),
-              if (!order.isRestock)
+              if (order.hasTarget)
                 DetailInfoRow(
-                  label: 'Total Selesai',
-                  value: '${order.completedQuantity} pcs',
+                  label: 'Total Jumlah',
+                  value: '${order.targetQuantity} pcs',
                 ),
+              DetailInfoRow(
+                label: order.hasTarget ? 'Total Selesai' : 'Total Tercatat',
+                value: '${order.completedQuantity} pcs',
+              ),
               // Editable wage row
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -1483,12 +1483,27 @@ class SpkDetailScreen extends ConsumerWidget {
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          'Hapus SPK?',
+          'Arsipkan SPK?',
           style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
         ),
-        content: Text(
-          '"${order.title}" akan dihapus permanen.',
-          style: GoogleFonts.inter(color: Colors.grey.shade600),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '"${order.title}" akan diarsipkan dan tidak tampil di daftar.',
+              style: GoogleFonts.inter(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Data upah penjahit dan perubahan stok yang sudah tercatat tidak akan terpengaruh.',
+              style: GoogleFonts.inter(
+                color: Colors.orange.shade800,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -1497,7 +1512,7 @@ class SpkDetailScreen extends ConsumerWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              await ref.read(productionOrderRepositoryProvider).delete(order);
+              await ref.read(productionOrderRepositoryProvider).softDelete(order.id);
               if (ctx.mounted) Navigator.pop(ctx);
             },
             style: ElevatedButton.styleFrom(
@@ -1508,7 +1523,7 @@ class SpkDetailScreen extends ConsumerWidget {
               ),
             ),
             child: Text(
-              'Hapus',
+              'Arsipkan',
               style: GoogleFonts.inter(fontWeight: FontWeight.w700),
             ),
           ),
@@ -1623,20 +1638,24 @@ class _CatatLaporanSheetState extends ConsumerState<_CatatLaporanSheet> {
       return;
     }
 
-    int maxAllowed =
-        widget.order.targetQuantity - widget.order.completedQuantity;
-    if (widget.order.isRestock &&
-        widget.order.items.isNotEmpty &&
-        _selectedVariantSize != null) {
-      final variant = widget.order.items.firstWhere(
-        (i) => i.size == _selectedVariantSize,
-      );
-      maxAllowed = variant.targetQuantity - variant.completedQuantity;
-    }
-
-    if (qty > maxAllowed) {
-      _showError('Jumlah melebihi sisa target ($maxAllowed pcs).');
-      return;
+    // Only enforce max limit if target is defined
+    if (widget.order.hasTarget) {
+      int maxAllowed =
+          widget.order.targetQuantity - widget.order.completedQuantity;
+      if (widget.order.isRestock &&
+          widget.order.items.isNotEmpty &&
+          _selectedVariantSize != null) {
+        final variant = widget.order.items.firstWhere(
+          (i) => i.size == _selectedVariantSize,
+        );
+        if (variant.hasTarget) {
+          maxAllowed = variant.targetQuantity - variant.completedQuantity;
+        }
+      }
+      if (maxAllowed > 0 && qty > maxAllowed) {
+        _showError('Jumlah melebihi sisa target ($maxAllowed pcs).');
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -1835,10 +1854,13 @@ class _CatatLaporanSheetState extends ConsumerState<_CatatLaporanSheet> {
                 }).toList();
               },
               items: widget.order.items.map((item) {
+                final label = item.hasTarget
+                    ? 'Ukuran ${item.size} (Sisa: ${item.targetQuantity - item.completedQuantity})'
+                    : 'Ukuran ${item.size} (Selesai: ${item.completedQuantity})';
                 return DropdownMenuItem(
                   value: item.size,
                   child: Text(
-                    'Ukuran ${item.size} (Sisa: ${item.targetQuantity - item.completedQuantity})',
+                    label,
                     style: GoogleFonts.inter(fontSize: 14),
                   ),
                 );

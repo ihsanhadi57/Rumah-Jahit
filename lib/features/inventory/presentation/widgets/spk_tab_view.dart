@@ -19,6 +19,14 @@ class SpkTabView extends ConsumerStatefulWidget {
 class _SpkTabViewState extends ConsumerState<SpkTabView> {
   // 0 = Pesanan (CUSTOM), 1 = Produksi (RESTOCK)
   int _selectedSubTab = 0;
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,12 +82,20 @@ class _SpkTabViewState extends ConsumerState<SpkTabView> {
   ) {
     final isTablet = MediaQuery.of(context).size.width > 768;
 
-    // Filter by sub-tab: 0=Personal, 1=Pesanan(Custom), 2=Stok(Restock)
-    final filteredOrders = _selectedSubTab == 0
+    final tabFiltered = _selectedSubTab == 0
         ? orders.where((o) => o.isPersonal).toList()
         : _selectedSubTab == 1
             ? orders.where((o) => o.isCustom).toList()
             : orders.where((o) => o.isRestock).toList();
+
+    // Apply search filter
+    final filteredOrders = _searchQuery.isEmpty
+        ? tabFiltered
+        : tabFiltered.where((o) {
+            final q = _searchQuery.toLowerCase();
+            return o.title.toLowerCase().contains(q) ||
+                o.productName.toLowerCase().contains(q);
+          }).toList();
 
     // Calculate metrics from ALL orders
     final activeOrders = orders.where((o) => o.status != 'COMPLETED').toList();
@@ -218,6 +234,8 @@ class _SpkTabViewState extends ConsumerState<SpkTabView> {
     return SizedBox(
       height: 48,
       child: TextField(
+        controller: _searchController,
+        onChanged: (val) => setState(() => _searchQuery = val.trim()),
         decoration: InputDecoration(
           hintText: _selectedSubTab == 0
               ? 'Cari nama pelanggan...'
@@ -233,6 +251,19 @@ class _SpkTabViewState extends ConsumerState<SpkTabView> {
             color: Colors.grey.shade500,
             size: 20,
           ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? GestureDetector(
+                  onTap: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                  child: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: Colors.grey.shade500,
+                  ),
+                )
+              : null,
           filled: true,
           fillColor: const Color(0xFFF2F4F4),
           contentPadding: const EdgeInsets.symmetric(vertical: 0),
@@ -336,6 +367,8 @@ class _SpkTabViewState extends ConsumerState<SpkTabView> {
           statusColor: statusColor,
           statusTextColor: statusTextColor,
           progress: order.progressPercent,
+          completedQuantity: order.completedQuantity,
+          hasTarget: order.hasTarget,
           progressBarColor: order.isCompleted
               ? const Color(0xFF004D4C)
               : order.progressPercent > 0.8

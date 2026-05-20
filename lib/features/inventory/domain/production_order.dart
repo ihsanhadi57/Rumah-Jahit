@@ -165,6 +165,8 @@ class SpkVariant {
       'completed_quantity': completedQuantity,
     };
   }
+
+  bool get hasTarget => targetQuantity > 0;
 }
 
 class ProductionOrder {
@@ -198,6 +200,10 @@ class ProductionOrder {
   final DateTime createdAt;
   final DateTime? completedAt;
 
+  // Soft delete
+  final bool isDeleted;
+  final DateTime? deletedAt;
+
   // Link to POS transaction (for custom orders from checkout)
   final String? transactionId;
   final String? customerName;
@@ -226,6 +232,8 @@ class ProductionOrder {
     required this.estimatedCompletionDate,
     required this.createdAt,
     this.completedAt,
+    this.isDeleted = false,
+    this.deletedAt,
     this.transactionId,
     this.customerName,
     this.customerPhone,
@@ -290,6 +298,8 @@ class ProductionOrder {
       createdAt:
           (data['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
       completedAt: (data['completed_at'] as Timestamp?)?.toDate(),
+      isDeleted: data['is_deleted'] == true,
+      deletedAt: (data['deleted_at'] as Timestamp?)?.toDate(),
       transactionId: data['transaction_id'] as String?,
       customerName: data['customer_name'] as String?,
       customerPhone: data['customer_phone'] as String?,
@@ -321,6 +331,10 @@ class ProductionOrder {
       'completed_at': completedAt != null
           ? Timestamp.fromDate(completedAt!)
           : null,
+      'is_deleted': isDeleted,
+      'deleted_at': deletedAt != null
+          ? Timestamp.fromDate(deletedAt!)
+          : null,
       'transaction_id': transactionId,
       'customer_name': customerName,
       'customer_phone': customerPhone,
@@ -335,8 +349,11 @@ class ProductionOrder {
 
   double get progressPercent {
     if (targetQuantity == 0) return 0;
-    return completedQuantity / targetQuantity;
+    return (completedQuantity / targetQuantity).clamp(0.0, 1.0);
   }
+
+  /// Whether this SPK has a defined target quantity
+  bool get hasTarget => targetQuantity > 0;
 
   int get totalAssignedPieces => targetQuantity; // Replaced logic since assignment does not track initial pieces. We just use target.
 
@@ -372,6 +389,8 @@ class ProductionOrder {
     DateTime? estimatedCompletionDate,
     DateTime? createdAt,
     DateTime? completedAt,
+    bool? isDeleted,
+    DateTime? deletedAt,
     String? transactionId,
     String? customerName,
     String? customerPhone,
@@ -398,6 +417,8 @@ class ProductionOrder {
           estimatedCompletionDate ?? this.estimatedCompletionDate,
       createdAt: createdAt ?? this.createdAt,
       completedAt: completedAt ?? this.completedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: deletedAt ?? this.deletedAt,
       transactionId: transactionId ?? this.transactionId,
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,

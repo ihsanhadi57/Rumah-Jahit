@@ -8,7 +8,6 @@ import 'package:rumah_jahit/features/inventory/domain/product.dart';
 import 'package:rumah_jahit/features/inventory/domain/production_order.dart';
 import 'package:rumah_jahit/features/inventory/domain/raw_material.dart';
 import 'package:rumah_jahit/features/payroll/data/payroll_providers.dart';
-import 'package:rumah_jahit/features/payroll/domain/app_user.dart';
 import 'package:rumah_jahit/core/utils/currency_utils.dart';
 import 'package:rumah_jahit/core/utils/snackbar_utils.dart';
 import 'package:rumah_jahit/core/widgets/custom_text_field.dart';
@@ -60,21 +59,15 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
 
   // Step 1 (RESTOCK): Product & Dates
   String? _selectedProductGroup;
-  final Map<String, TextEditingController> _sizeQtyControllers = {};
   final _titleController = TextEditingController();
-  final _qtyController = TextEditingController();
   DateTime _startDate = DateTime.now();
   DateTime _estimatedEndDate = DateTime.now().add(const Duration(days: 7));
 
   // Step 1 (CUSTOM): Manual product info
   final _customProductNameController = TextEditingController();
   final _customProductTypeController = TextEditingController();
-  final _customQtyController = TextEditingController();
 
-  // Step 2: Tailors
-  final Map<String, bool> _selectedTailors = {};
-
-  // Step 3: Wage & Materials
+  // Step 2: Wage & Materials (tailors auto-assigned)
   final _wageController = TextEditingController();
   bool _hasAutoDetectedWage = false;
   WageCategory? _selectedWageCategory;
@@ -85,27 +78,16 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
   @override
   void dispose() {
     _titleController.dispose();
-    _qtyController.dispose();
     _wageController.dispose();
     _customProductNameController.dispose();
     _customProductTypeController.dispose();
-    _customQtyController.dispose();
-    for (final c in _sizeQtyControllers.values) {
-      c.dispose();
-    }
     for (final c in _materialQtyControllers.values) {
       c.dispose();
     }
     super.dispose();
   }
 
-  /// Total quantity based on mode
-  int get _totalQty {
-    if (_spkType == 'CUSTOM') {
-      return int.tryParse(_customQtyController.text) ?? 0;
-    }
-    return int.tryParse(_qtyController.text) ?? 0;
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +99,6 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
     }
 
     final productsAsync = ref.watch(productsStreamProvider);
-    final tailorsAsync = ref.watch(tailorsStreamProvider);
     final materialsAsync = ref.watch(rawMaterialsStreamProvider);
     final wageCategoriesAsync = ref.watch(wageCategoriesStreamProvider);
 
@@ -197,9 +178,7 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
                         ? _spkType == 'CUSTOM'
                               ? _buildCustomStep1(colors)
                               : _buildRestockStep1(productsAsync, colors)
-                        : _currentStep == 1
-                        ? _buildStep2(tailorsAsync, colors)
-                        : _buildStep3(
+                        : _buildStep2WageMaterials(
                             materialsAsync,
                             wageCategoriesAsync,
                             colors,
@@ -259,7 +238,7 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
                               ),
                             )
                           : Text(
-                              _currentStep < 2 ? 'Lanjut' : 'Simpan SPK',
+                              _currentStep < 1 ? 'Lanjut' : 'Simpan SPK',
                               style: GoogleFonts.inter(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15,
@@ -414,7 +393,7 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
 
   // ── Step Indicator ──
   Widget _buildStepIndicator(ColorScheme colors) {
-    final steps = ['Produk', 'Penjahit', 'Upah & Bahan'];
+    final steps = ['Produk', 'Upah & Bahan'];
     return Row(
       children: List.generate(steps.length, (i) {
         final isActive = i == _currentStep;
@@ -488,6 +467,15 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
           availableSizes.addAll(grouped[_selectedProductGroup]!);
         }
 
+        // Display name for selected product
+        String? selectedDisplayName;
+        if (_selectedProductGroup != null &&
+            grouped.containsKey(_selectedProductGroup)) {
+          final first = grouped[_selectedProductGroup]!.first;
+          selectedDisplayName =
+              '${first.name} ${first.schoolLevels.join('/')} - ${first.type}';
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -506,153 +494,100 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
 
             _buildLabel('Pilih Produk'),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF2F4F4),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedProductGroup,
-                  isExpanded: true,
-                  hint: Text(
-                    'Pilih produk barang jadi...',
-                    style: GoogleFonts.inter(
-                      color: Colors.grey.shade400,
-                      fontSize: 14,
+            GestureDetector(
+              onTap: () => _showProductPicker(context, grouped, colors),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2F4F4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: _selectedProductGroup != null
+                      ? Border.all(
+                          color: colors.primary.withValues(alpha: 0.3),
+                        )
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _selectedProductGroup != null
+                          ? Icons.checkroom
+                          : Icons.search,
+                      size: 18,
+                      color: _selectedProductGroup != null
+                          ? colors.primary
+                          : Colors.grey.shade400,
                     ),
-                  ),
-                  icon: const Icon(Icons.keyboard_arrow_down),
-                  items: grouped.entries.map((entry) {
-                    final first = entry.value.first;
-                    return DropdownMenuItem(
-                      value: entry.key,
+                    const SizedBox(width: 12),
+                    Expanded(
                       child: Text(
-                        '${first.name} ${first.schoolLevels.join('/')} - ${first.type}',
-                        style: GoogleFonts.inter(fontSize: 14),
+                        selectedDisplayName ?? 'Ketuk untuk pilih produk...',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: _selectedProductGroup != null
+                              ? Colors.black87
+                              : Colors.grey.shade400,
+                          fontWeight: _selectedProductGroup != null
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (v) => setState(() {
-                    _selectedProductGroup = v;
-                    _sizeQtyControllers.clear();
-                    _qtyController.text = '0';
-                  }),
+                    ),
+                    Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.grey.shade500,
+                    ),
+                  ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
 
-            // Size Multi-Picker (only shown after product is selected)
+            // Show auto-included sizes (read-only info)
             if (_selectedProductGroup != null && availableSizes.isNotEmpty) ...[
-              _buildLabel('Input Jumlah per Ukuran'),
-              const SizedBox(height: 12),
-              ...availableSizes.map((p) {
-                _sizeQtyControllers.putIfAbsent(
-                  p.id,
-                  () => TextEditingController(),
-                );
-                final controller = _sizeQtyControllers[p.id]!;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: colors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Center(
-                          child: Text(
-                            p.size,
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w800,
-                              color: colors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          'Ukuran ${p.size}',
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 100,
-                        child: CustomTextField(
-                          controller: controller,
-                          label: '',
-                          hint: '0',
-                          suffixText: 'pcs',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                          // Gunakan warna abu-abu default CustomTextField agar terlihat saat belum unfocused
-                          fillColor: const Color(0xFFF2F4F4),
-                          onChanged: (_) {
-                            int total = 0;
-                            for (var c in _sizeQtyControllers.values) {
-                              total += int.tryParse(c.text) ?? 0;
-                            }
-                            _qtyController.text = total.toString();
-                            setState(() {});
-                          },
-                          validator: (v) {
-                            if (v != null && v.isNotEmpty) {
-                              final intVal = int.tryParse(v);
-                              if (intVal == null) return 'Invalid';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
+              _buildLabel('Ukuran Otomatis Tercatat'),
               const SizedBox(height: 8),
-            ],
-
-            CustomTextField(
-              controller: _qtyController,
-              label: 'Total Jumlah Produksi',
-              hint: '0',
-              icon: Icons.summarize_outlined,
-              showLabelOutside: true,
-              readOnly: true,
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w800,
-                color: colors.primary,
-                fontSize: 16,
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: availableSizes.map((p) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: colors.primary.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Text(
+                      p.size,
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w700,
+                        color: colors.primary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
-              validator: (v) {
-                final val = int.tryParse(v ?? '') ?? 0;
-                if (val <= 0) return 'Input jumlah minimal untuk satu ukuran';
-                return null;
-              },
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 8),
+              Text(
+                'Semua ukuran akan otomatis dimasukkan. Jumlah dicatat saat produksi harian.',
+                style: GoogleFonts.inter(
+                  color: Colors.grey.shade500,
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
 
             // Dates
             _buildDatesRow(colors),
@@ -702,27 +637,14 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
           showLabelOutside: true,
           textCapitalization: TextCapitalization.words,
         ),
-        const SizedBox(height: 20),
-
-        CustomTextField(
-          controller: _customQtyController,
-          label: 'Jumlah Total Produksi',
-          hint: '0',
-          icon: Icons.production_quantity_limits_outlined,
-          showLabelOutside: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          onChanged: (_) => setState(() {}),
+        const SizedBox(height: 12),
+        Text(
+          'Jumlah produksi akan dicatat secara dinamis saat produksi harian.',
           style: GoogleFonts.inter(
-            fontWeight: FontWeight.w800,
-            color: colors.primary,
-            fontSize: 16,
+            color: Colors.grey.shade500,
+            fontSize: 11,
+            fontStyle: FontStyle.italic,
           ),
-          validator: (v) {
-            final qty = int.tryParse(v ?? '') ?? 0;
-            if (qty <= 0) return 'Jumlah produksi harus lebih dari 0';
-            return null;
-          },
         ),
         const SizedBox(height: 20),
 
@@ -807,124 +729,7 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
     );
   }
 
-  // ══════════════════════════════════════
-  // STEP 2: Assign Tailors
-  // ══════════════════════════════════════
-  Widget _buildStep2(
-    AsyncValue<List<AppUser>> tailorsAsync,
-    ColorScheme colors,
-  ) {
-    return tailorsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Text('Error: $e'),
-      data: (tailors) {
-        if (tailors.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.people_outline,
-                    size: 48,
-                    color: Colors.grey.shade300,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Belum ada data penjahit',
-                    style: GoogleFonts.inter(color: Colors.grey.shade500),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Tambah penjahit di menu Karyawan terlebih dahulu',
-                    style: GoogleFonts.inter(
-                      color: Colors.grey.shade400,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        final targetQty = _totalQty;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Target SPK: $targetQty pcs',
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: colors.primary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...tailors.map((tailor) {
-              final isSelected = _selectedTailors[tailor.id] ?? false;
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? colors.primary.withValues(alpha: 0.05)
-                      : const Color(0xFFFAFBFB),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isSelected
-                        ? colors.primary.withValues(alpha: 0.3)
-                        : Colors.grey.shade200,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Checkbox(
-                      value: isSelected,
-                      activeColor: colors.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      onChanged: (v) {
-                        setState(() {
-                          _selectedTailors[tailor.id] = v!;
-                        });
-                      },
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            tailor.name,
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            tailor.phone,
-                            style: GoogleFonts.inter(
-                              color: Colors.grey.shade500,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildStep3(
+  Widget _buildStep2WageMaterials(
     AsyncValue<List<RawMaterial>> materialsAsync,
     AsyncValue<List<WageCategory>> wageCategoriesAsync,
     ColorScheme colors,
@@ -1324,16 +1129,6 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
       }
 
       setState(() => _currentStep = 1);
-    } else if (_currentStep == 1) {
-      final selectedIds = _selectedTailors.entries
-          .where((e) => e.value)
-          .map((e) => e.key)
-          .toList();
-      if (selectedIds.isEmpty) {
-        _showSnackBar('Pilih minimal satu penjahit', isError: true);
-        return;
-      }
-      setState(() => _currentStep = 2);
       _autoDetectWage();
     } else {
       _submit();
@@ -1355,50 +1150,40 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
       final variants = <SpkVariant>[];
       String productName;
       String productType;
-      int totalQty;
 
       if (_spkType == 'CUSTOM') {
-        // Custom: single item with no product ID
-        totalQty = int.tryParse(_customQtyController.text) ?? 0;
+        // Custom: no variants, no target qty
         productName = _customProductNameController.text.trim();
         productType = _customProductTypeController.text.trim();
-        // No SpkVariant items for custom — just total qty
       } else {
-        // Restock: build from size controllers
+        // Restock: auto-include ALL sizes with targetQuantity = 0
         final products = ref.read(productsStreamProvider).value ?? [];
-        for (final entry in _sizeQtyControllers.entries) {
-          final qty = int.tryParse(entry.value.text) ?? 0;
-          if (qty > 0) {
-            final product = products.firstWhere((p) => p.id == entry.key);
-            variants.add(
-              SpkVariant(
-                productId: product.id,
-                size: product.size,
-                targetQuantity: qty,
-              ),
-            );
-          }
+        final grouped = <String, List<Product>>{};
+        for (final p in products) {
+          final key = '${p.name}_${p.schoolLevels.join('_')}_${p.type}';
+          grouped.putIfAbsent(key, () => []).add(p);
         }
-        if (variants.isEmpty) {
-          throw 'Minimal satu ukuran harus diisi jumlahnya';
+        final selectedProducts = grouped[_selectedProductGroup] ?? [];
+        for (final product in selectedProducts) {
+          variants.add(
+            SpkVariant(
+              productId: product.id,
+              size: product.size,
+              targetQuantity: 0,
+            ),
+          );
         }
-        final firstProduct = products.firstWhere(
-          (p) => p.id == variants.first.productId,
-        );
-        productName = firstProduct.name;
-        productType = firstProduct.type;
-        totalQty = int.tryParse(_qtyController.text) ?? 0;
+        if (selectedProducts.isEmpty) {
+          throw 'Produk tidak ditemukan';
+        }
+        productName = selectedProducts.first.name;
+        productType = selectedProducts.first.type;
       }
 
-      // Build tailor assignments
-      final assignments = <TailorAssignment>[];
-      for (final entry in _selectedTailors.entries) {
-        if (!entry.value) continue;
-        final tailor = tailors.firstWhere((t) => t.id == entry.key);
-        assignments.add(
-          TailorAssignment(userId: tailor.id, userName: tailor.name),
-        );
-      }
+      // Auto-assign ALL tailors
+      final assignments = tailors
+          .map((t) => TailorAssignment(userId: t.id, userName: t.name))
+          .toList();
 
       // Build materials used
       final materialsUsed = <MaterialUsed>[];
@@ -1424,7 +1209,7 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
         productName: productName,
         productType: productType,
         items: variants,
-        targetQuantity: totalQty,
+        targetQuantity: 0,
         status: 'PENDING',
         completedQuantity: 0,
         tailorAssignments: assignments,
@@ -1486,5 +1271,343 @@ class _AddSpkFormState extends ConsumerState<AddSpkForm> {
     }
     _hasAutoDetectedWage = true;
     setState(() {});
+  }
+
+  // ── Product Picker Bottom Sheet ──
+  void _showProductPicker(
+    BuildContext context,
+    Map<String, List<Product>> grouped,
+    ColorScheme colors,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return _ProductPickerSheet(
+          grouped: grouped,
+          selectedKey: _selectedProductGroup,
+          colors: colors,
+          onSelected: (key) {
+            setState(() => _selectedProductGroup = key);
+            Navigator.pop(ctx);
+          },
+        );
+      },
+    );
+  }
+}
+
+// ══════════════════════════════════════
+// Searchable Product Picker Bottom Sheet
+// ══════════════════════════════════════
+class _ProductPickerSheet extends StatefulWidget {
+  final Map<String, List<Product>> grouped;
+  final String? selectedKey;
+  final ColorScheme colors;
+  final ValueChanged<String> onSelected;
+
+  const _ProductPickerSheet({
+    required this.grouped,
+    required this.selectedKey,
+    required this.colors,
+    required this.onSelected,
+  });
+
+  @override
+  State<_ProductPickerSheet> createState() => _ProductPickerSheetState();
+}
+
+class _ProductPickerSheetState extends State<_ProductPickerSheet> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Group entries by product name for section headers
+  Map<String, List<MapEntry<String, List<Product>>>> _buildSections(
+    Map<String, List<MapEntry<String, List<Product>>>> cache,
+  ) {
+    final sections = <String, List<MapEntry<String, List<Product>>>>{};
+    for (final entry in widget.grouped.entries) {
+      final first = entry.value.first;
+      final displayLabel =
+          '${first.name} ${first.schoolLevels.join('/')} - ${first.type}';
+
+      // Filter by search query
+      if (_query.isNotEmpty &&
+          !displayLabel.toLowerCase().contains(_query.toLowerCase())) {
+        continue;
+      }
+
+      final sectionName = first.name;
+      sections.putIfAbsent(sectionName, () => []).add(entry);
+    }
+    return sections;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sections = _buildSections({});
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Handle bar ──
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // ── Title ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Pilih Produk',
+              style: GoogleFonts.manrope(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: widget.colors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Cari dan pilih produk untuk SPK ini',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // ── Search bar ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F4F4),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.search, size: 20, color: Colors.grey.shade400),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      style: GoogleFonts.inter(fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Cari produk...',
+                        hintStyle: GoogleFonts.inter(
+                          color: Colors.grey.shade400,
+                          fontSize: 14,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+                      ),
+                      onChanged: (val) => setState(() => _query = val),
+                    ),
+                  ),
+                  if (_query.isNotEmpty)
+                    GestureDetector(
+                      onTap: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                      child: Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ── Product list grouped by name ──
+          Expanded(
+            child: sections.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 48,
+                          color: Colors.grey.shade300,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Tidak ada produk ditemukan',
+                          style: GoogleFonts.inter(
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: sections.length,
+                    itemBuilder: (ctx, sectionIndex) {
+                      final sectionName = sections.keys.elementAt(sectionIndex);
+                      final items = sections[sectionName]!;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Section header
+                          Padding(
+                            padding: EdgeInsets.only(
+                              top: sectionIndex == 0 ? 4 : 20,
+                              bottom: 10,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.checkroom_outlined,
+                                  size: 16,
+                                  color: widget.colors.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  sectionName,
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: widget.colors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Container(
+                                    height: 1,
+                                    color: Colors.grey.shade200,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Items in this section
+                          ...items.map((entry) {
+                            final first = entry.value.first;
+                            final isSelected =
+                                entry.key == widget.selectedKey;
+                            final subtitle =
+                                '${first.schoolLevels.join('/')} - ${first.type}';
+                            final sizeCount = entry.value.length;
+
+                            return GestureDetector(
+                              onTap: () => widget.onSelected(entry.key),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? widget.colors.primary
+                                          .withValues(alpha: 0.06)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? widget.colors.primary
+                                            .withValues(alpha: 0.4)
+                                        : Colors.grey.shade200,
+                                    width: isSelected ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Left accent
+                                    Container(
+                                      width: 4,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? widget.colors.primary
+                                            : Colors.grey.shade300,
+                                        borderRadius:
+                                            BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            subtitle,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: isSelected
+                                                  ? widget.colors.primary
+                                                  : Colors.black87,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '$sizeCount ukuran tersedia',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              color: Colors.grey.shade500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: widget.colors.primary,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.check,
+                                          size: 14,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 }

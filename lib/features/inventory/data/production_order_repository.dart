@@ -21,6 +21,7 @@ class ProductionOrderRepository {
         .map(
           (snapshot) => snapshot.docs
               .map((doc) => ProductionOrder.fromFirestore(doc))
+              .where((order) => !order.isDeleted)
               .toList(),
         );
   }
@@ -34,6 +35,7 @@ class ProductionOrderRepository {
         .map(
           (snapshot) => snapshot.docs
               .map((doc) => ProductionOrder.fromFirestore(doc))
+              .where((order) => !order.isDeleted)
               .toList(),
         );
   }
@@ -48,6 +50,7 @@ class ProductionOrderRepository {
         .map(
           (snapshot) => snapshot.docs
               .map((doc) => ProductionOrder.fromFirestore(doc))
+              .where((order) => !order.isDeleted)
               .toList(),
         );
   }
@@ -287,7 +290,17 @@ class ProductionOrderRepository {
     await batch.commit();
   }
 
-  /// Delete an order (only if PENDING/IN_PROGRESS) and restore stock
+  /// Soft-delete an order: marks as deleted without removing data.
+  /// Payroll records and stock changes remain intact.
+  Future<void> softDelete(String orderId) async {
+    await _collection.doc(orderId).update({
+      'is_deleted': true,
+      'deleted_at': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Hard-delete an order and restore materials (legacy — use softDelete instead)
+  @Deprecated('Use softDelete() to preserve payroll/stock history')
   Future<void> delete(ProductionOrder order) async {
     final batch = FirebaseFirestore.instance.batch();
 

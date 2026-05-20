@@ -10,6 +10,8 @@ class InventorySpkCard extends StatelessWidget {
   final Color statusTextColor;
   final bool isPriority;
   final double progress;
+  final int completedQuantity;
+  final bool hasTarget;
   final Widget bottomLeftWidget;
   final Color progressBarColor;
 
@@ -23,6 +25,8 @@ class InventorySpkCard extends StatelessWidget {
     required this.statusTextColor,
     this.isPriority = false,
     required this.progress,
+    this.completedQuantity = 0,
+    this.hasTarget = true,
     required this.bottomLeftWidget,
     required this.progressBarColor,
   });
@@ -127,6 +131,8 @@ class InventorySpkCard extends StatelessWidget {
                     // Title
                     Text(
                       title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.manrope(
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
@@ -146,31 +152,51 @@ class InventorySpkCard extends StatelessWidget {
                         // Wrap the right-hand part in another row/column to control size
                         Expanded(
                           flex: 1,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Progress: ${(progress * 100).toInt()}%',
-                                style: GoogleFonts.inter(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 11,
+                          child: hasTarget
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Progress: ${(progress * 100).toInt()}%',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 50,
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: LinearProgressIndicator(
+                                          value: progress,
+                                          minHeight: 6,
+                                          backgroundColor: Colors.grey.shade200,
+                                          valueColor: AlwaysStoppedAnimation<Color>(progressBarColor),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Icon(
+                                      Icons.inventory_2_outlined,
+                                      size: 14,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Tercatat: $completedQuantity pcs',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                width: 50,
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: LinearProgressIndicator(
-                                    value: progress,
-                                    minHeight: 6,
-                                    backgroundColor: Colors.grey.shade200,
-                                    valueColor: AlwaysStoppedAnimation<Color>(progressBarColor),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
