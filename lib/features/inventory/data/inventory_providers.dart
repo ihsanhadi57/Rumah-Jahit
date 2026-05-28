@@ -8,6 +8,8 @@ import '../domain/production_order.dart';
 import 'raw_material_repository.dart';
 import 'product_repository.dart';
 import 'production_order_repository.dart';
+import 'quick_production_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ── Repository Providers ──
 
@@ -22,6 +24,10 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
 final productionOrderRepositoryProvider =
     Provider<ProductionOrderRepository>((ref) {
   return ProductionOrderRepository();
+});
+
+final quickProductionServiceProvider = Provider<QuickProductionService>((ref) {
+  return QuickProductionService(FirebaseFirestore.instance);
 });
 
 // ── Stream Providers ──

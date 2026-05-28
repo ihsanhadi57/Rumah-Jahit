@@ -7,6 +7,7 @@ import 'package:rumah_jahit/core/services/image_upload_service.dart';
 import 'package:rumah_jahit/features/inventory/data/inventory_providers.dart';
 import 'package:rumah_jahit/features/inventory/domain/product.dart';
 import 'package:rumah_jahit/features/inventory/domain/production_order.dart';
+import 'package:rumah_jahit/features/inventory/presentation/widgets/quick_production_bottom_sheet.dart';
 
 /// Rupiah formatter (shared)
 class _RupiahInputFormatter extends TextInputFormatter {
@@ -95,21 +96,23 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         data: (allProducts) {
           // Filter to only this product's variants
           const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL'];
-          final variants = allProducts
-              .where(
-                (p) =>
-                    p.name == widget.productName &&
-                    p.type == widget.productType &&
-                    p.schoolLevels.join('_') == widget.schoolLevels.join('_'),
-              )
-              .toList()
-            ..sort((a, b) {
-                final ai = sizeOrder.indexOf(a.size.toUpperCase());
-                final bi = sizeOrder.indexOf(b.size.toUpperCase());
-                final aIdx = ai == -1 ? sizeOrder.length : ai;
-                final bIdx = bi == -1 ? sizeOrder.length : bi;
-                return aIdx.compareTo(bIdx);
-              });
+          final variants =
+              allProducts
+                  .where(
+                    (p) =>
+                        p.name == widget.productName &&
+                        p.type == widget.productType &&
+                        p.schoolLevels.join('_') ==
+                            widget.schoolLevels.join('_'),
+                  )
+                  .toList()
+                ..sort((a, b) {
+                  final ai = sizeOrder.indexOf(a.size.toUpperCase());
+                  final bi = sizeOrder.indexOf(b.size.toUpperCase());
+                  final aIdx = ai == -1 ? sizeOrder.length : ai;
+                  final bIdx = bi == -1 ? sizeOrder.length : bi;
+                  return aIdx.compareTo(bIdx);
+                });
 
           if (variants.isEmpty) {
             if (!_isPopping) {
@@ -302,6 +305,40 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               const SizedBox(height: 12),
 
               ...variants.map((variant) => _buildVariantCard(variant, colors)),
+
+              const SizedBox(height: 16),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (ctx) => QuickProductionBottomSheet(
+                        variants: variants,
+                        productName: widget.productName,
+                        productType: widget.productType,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: Text(
+                    'Tambah Stok',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.primary.withValues(alpha: 0.1),
+                    foregroundColor: colors.primary,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 24),
 
@@ -798,8 +835,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: Colors.white,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             title: Text(
               'Edit Nama & Tipe',
               style: GoogleFonts.manrope(
@@ -850,8 +888,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     items: productTypes.map((type) {
                       return DropdownMenuItem(
                         value: type,
-                        child:
-                            Text(type, style: GoogleFonts.inter(fontSize: 14)),
+                        child: Text(
+                          type,
+                          style: GoogleFonts.inter(fontSize: 14),
+                        ),
                       );
                     }).toList(),
                     onChanged: (v) {
@@ -867,8 +907,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child:
-                    Text('Batal', style: GoogleFonts.inter(color: Colors.grey)),
+                child: Text(
+                  'Batal',
+                  style: GoogleFonts.inter(color: Colors.grey),
+                ),
               ),
               ElevatedButton(
                 onPressed: () async {
