@@ -12,6 +12,10 @@ import 'widgets/profile_summary_card.dart';
 import 'widgets/payroll_adjustments_card.dart';
 import 'widgets/detailed_payroll_card.dart';
 import 'widgets/production_stats_card.dart';
+import 'widgets/employee_quick_production_bottom_sheet.dart';
+import 'package:rumah_jahit/features/inventory/data/inventory_providers.dart';
+import 'package:rumah_jahit/features/inventory/domain/product.dart';
+import 'package:rumah_jahit/core/widgets/product_picker_sheet.dart';
 
 class EmployeeDetailScreen extends ConsumerStatefulWidget {
   final AppUser employee;
@@ -261,11 +265,63 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
     }
   }
 
+  void _onTambahHasilKerjaPressed(
+    ColorScheme colors,
+    AsyncValue<List<Product>> productsAsync,
+  ) {
+    final products = productsAsync.value;
+    if (products == null || products.isEmpty) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => EmployeeQuickProductionBottomSheet(
+          employee: _employee,
+        ),
+      );
+      return;
+    }
+
+    final grouped = <String, List<Product>>{};
+    for (final p in products) {
+      final key = '${p.name}_${p.schoolLevels.join('_')}_${p.type}';
+      grouped.putIfAbsent(key, () => []).add(p);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return ProductPickerSheet(
+          grouped: grouped,
+          selectedKey: null,
+          colors: colors,
+          title: 'Pilih Produk',
+          subtitle: 'Cari dan pilih produk yang baru saja dijahit',
+          onSelected: (key) {
+            Navigator.pop(ctx);
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (ctx2) => EmployeeQuickProductionBottomSheet(
+                employee: _employee,
+                initialProductGroup: key,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final payrollAsync = ref.watch(unpaidPayrollByUserProvider(_employee.id));
     final paidPayrollAsync = ref.watch(paidPayrollByUserProvider(_employee.id));
+    final productsAsync = ref.watch(productsStreamProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFA),
@@ -333,6 +389,34 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
                                     const SizedBox(height: 24),
                                     DetailedPayrollCard(userId: _employee.id),
                                     const SizedBox(height: 24),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () => _onTambahHasilKerjaPressed(colors, productsAsync),
+                                        icon: const Icon(Icons.add),
+                                        label: Text(
+                                          'Tambah Hasil Kerja',
+                                          style: GoogleFonts.inter(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: colors.primary
+                                              .withValues(alpha: 0.1),
+                                          foregroundColor: colors.primary,
+                                          elevation: 0,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 14,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
                                     _buildPaidSalaryHistory(paidPayrollAsync),
                                     const SizedBox(
                                       height: 160,
@@ -363,6 +447,33 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
                               ),
                               const SizedBox(height: 24),
                               DetailedPayrollCard(userId: _employee.id),
+                              const SizedBox(height: 24),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _onTambahHasilKerjaPressed(colors, productsAsync),
+                                  icon: const Icon(Icons.add),
+                                  label: Text(
+                                    'Tambah Hasil Kerja',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: colors.primary.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    foregroundColor: colors.primary,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                ),
+                              ),
                               const SizedBox(height: 24),
                               _buildPaidSalaryHistory(paidPayrollAsync),
                               const SizedBox(

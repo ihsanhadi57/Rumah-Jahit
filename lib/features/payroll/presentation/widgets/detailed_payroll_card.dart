@@ -37,7 +37,9 @@ class DetailedPayrollCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -168,9 +170,9 @@ class DetailedPayrollCard extends ConsumerWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (record.spkId != null)
+              if (record.piecesCount > 0)
                 Text(
-                  '${record.piecesCount} pcs x (${formatCurrency(record.wagePerPiece)})',
+                  '${record.piecesCount} pcs  x (${formatCurrency(record.wagePerPiece)})',
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     color: Colors.grey.shade500,

@@ -5,47 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/utils/snackbar_utils.dart';
+import '../../../../core/utils/currency_utils.dart';
 
 import '../../../../core/services/image_upload_service.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../data/inventory_providers.dart';
 import '../../domain/product.dart';
-
-/// Custom TextInputFormatter for Rupiah formatting
-class _RupiahInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-    if (digitsOnly.isEmpty) {
-      return const TextEditingValue(
-        text: '',
-        selection: TextSelection.collapsed(offset: 0),
-      );
-    }
-
-    final number = int.parse(digitsOnly);
-    final formatted = _formatNumber(number);
-    final prefixed = 'Rp $formatted';
-
-    return TextEditingValue(
-      text: prefixed,
-      selection: TextSelection.collapsed(offset: prefixed.length),
-    );
-  }
-
-  static String _formatNumber(int number) {
-    final str = number.toString();
-    final buffer = StringBuffer();
-    for (int i = 0; i < str.length; i++) {
-      if (i > 0 && (str.length - i) % 3 == 0) buffer.write('.');
-      buffer.write(str[i]);
-    }
-    return buffer.toString();
-  }
-}
 
 class AddProductForm extends ConsumerStatefulWidget {
   const AddProductForm({super.key});
@@ -59,10 +24,10 @@ class _SizeEntry {
   final TextEditingController priceController;
   final TextEditingController stockController;
 
-  _SizeEntry()
-    : selectedSize = 'S',
-      priceController = TextEditingController(),
-      stockController = TextEditingController();
+  _SizeEntry({String size = 'S', String stock = '0', String price = ''})
+    : selectedSize = size,
+      priceController = TextEditingController(text: price),
+      stockController = TextEditingController(text: stock);
 
   void dispose() {
     priceController.dispose();
@@ -82,7 +47,7 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
   final _nameController = TextEditingController();
   String _selectedType = 'Lengan Panjang';
   final List<String> _selectedLevels = [];
-  final List<_SizeEntry> _sizeEntries = [_SizeEntry()];
+  final List<_SizeEntry> _sizeEntries = [];
   bool _isLoading = false;
 
   // Image state
@@ -108,6 +73,16 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
     'MA',
     'SMK',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-populate all standard sizes with stock 0 by default for clothing
+    _sizeEntries.clear();
+    for (final size in _availableSizes) {
+      _sizeEntries.add(_SizeEntry(size: size, stock: '0'));
+    }
+  }
 
   @override
   void dispose() {
@@ -249,11 +224,15 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
                         onChanged: (v) {
                           setState(() {
                             _selectedType = v!;
+                            for (final e in _sizeEntries) {
+                              e.dispose();
+                            }
+                            _sizeEntries.clear();
                             if (_selectedType == 'Perlengkapan Sekolah') {
-                              if (_sizeEntries.length > 1) {
-                                final first = _sizeEntries.first;
-                                _sizeEntries.clear();
-                                _sizeEntries.add(first);
+                              _sizeEntries.add(_SizeEntry(size: 'All Size', stock: '0'));
+                            } else {
+                              for (final size in _availableSizes) {
+                                _sizeEntries.add(_SizeEntry(size: size, stock: '0'));
                               }
                             }
                           });
@@ -580,7 +559,7 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Size Dropdown
+              // Static Size Text Label instead of Dropdown
               if (_selectedType != 'Perlengkapan Sekolah') ...[
                 Expanded(
                   flex: 2,
@@ -598,29 +577,17 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
                       const SizedBox(height: 6),
                       Container(
                         height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: const Color(0xFFF2F4F4),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: entry.selectedSize,
-                            isExpanded: true,
-                            icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                            items: availableSizes
-                                .map(
-                                  (s) =>
-                                      DropdownMenuItem(value: s, child: Text(s)),
-                                )
-                                .toList(),
-                            onChanged: (v) =>
-                                setState(() => entry.selectedSize = v!),
+                        child: Text(
+                          entry.selectedSize,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
                           ),
                         ),
                       ),
@@ -651,7 +618,7 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
                       keyboardType: TextInputType.number,
                       inputFormatters: [
                         FilteringTextInputFormatter.digitsOnly,
-                        _RupiahInputFormatter(),
+                        RupiahInputFormatter(),
                       ],
                       style: GoogleFonts.inter(
                         fontSize: 13,
@@ -735,18 +702,6 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
       return;
     }
 
-    // Check duplicate sizes
-    final sizes = _sizeEntries.map((e) => e.selectedSize).toList();
-    if (sizes.toSet().length != sizes.length) {
-      SnackBarUtils.show(
-        context,
-        'Ukuran tidak boleh duplikat',
-        isError: true,
-        showAboveBar: true,
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
@@ -805,7 +760,7 @@ class _AddProductFormState extends ConsumerState<AddProductForm> {
         Navigator.of(context).pop();
         SnackBarUtils.show(
           context,
-          '${products.length} varian "${_nameController.text.trim()}" berhasil ditambahkan',
+          'Varian "${_nameController.text.trim()}" berhasil disimpan',
           showAboveBar: true,
         );
       }

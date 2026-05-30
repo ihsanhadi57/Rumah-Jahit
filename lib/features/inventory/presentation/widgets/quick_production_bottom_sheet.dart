@@ -9,34 +9,7 @@ import '../../../settings/data/settings_providers.dart';
 import '../../../settings/domain/wage_category.dart';
 import '../../domain/product.dart';
 import '../../data/inventory_providers.dart';
-
-class _RupiahInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-    if (digitsOnly.isEmpty) {
-      return const TextEditingValue(
-        text: '',
-        selection: TextSelection.collapsed(offset: 0),
-      );
-    }
-    final number = int.parse(digitsOnly);
-    final str = number.toString();
-    final buffer = StringBuffer();
-    for (int i = 0; i < str.length; i++) {
-      if (i > 0 && (str.length - i) % 3 == 0) buffer.write('.');
-      buffer.write(str[i]);
-    }
-    final prefixed = 'Rp ${buffer.toString()}';
-    return TextEditingValue(
-      text: prefixed,
-      selection: TextSelection.collapsed(offset: prefixed.length),
-    );
-  }
-}
+import '../../../../core/utils/currency_utils.dart';
 
 class QuickProductionBottomSheet extends ConsumerStatefulWidget {
   final List<Product> variants;
@@ -58,12 +31,12 @@ class QuickProductionBottomSheet extends ConsumerStatefulWidget {
 class _QuickProductionBottomSheetState
     extends ConsumerState<QuickProductionBottomSheet> {
   final _formKey = GlobalKey<FormState>();
-  
+
   Product? _selectedVariant;
   AppUser? _selectedTailor;
   WageCategory? _selectedWageCategory;
   final _quantityController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _isWageInitialized = false;
 
@@ -83,7 +56,9 @@ class _QuickProductionBottomSheetState
 
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedVariant == null || _selectedTailor == null || _selectedWageCategory == null) {
+    if (_selectedVariant == null ||
+        _selectedTailor == null ||
+        _selectedWageCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pastikan semua form telah diisi')),
       );
@@ -93,11 +68,13 @@ class _QuickProductionBottomSheetState
     setState(() => _isLoading = true);
 
     try {
-      final quantity = int.parse(_quantityController.text.replaceAll(RegExp(r'[^\d]'), ''));
+      final quantity = int.parse(
+        _quantityController.text.replaceAll(RegExp(r'[^\d]'), ''),
+      );
       final wage = _selectedWageCategory!.amount;
 
       final service = ref.read(quickProductionServiceProvider);
-      
+
       await service.addQuickProduction(
         product: _selectedVariant!,
         tailor: _selectedTailor!,
@@ -180,7 +157,7 @@ class _QuickProductionBottomSheetState
 
                 // Size Dropdown
                 DropdownButtonFormField<Product>(
-                  value: _selectedVariant,
+                  initialValue: _selectedVariant,
                   decoration: InputDecoration(
                     labelText: 'Ukuran Produk',
                     labelStyle: GoogleFonts.inter(fontSize: 14),
@@ -190,7 +167,10 @@ class _QuickProductionBottomSheetState
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                   ),
                   items: widget.variants.map((v) {
                     return DropdownMenuItem(
@@ -209,7 +189,7 @@ class _QuickProductionBottomSheetState
                   error: (e, _) => Text('Gagal memuat penjahit: $e'),
                   data: (tailors) {
                     return DropdownButtonFormField<AppUser>(
-                      value: _selectedTailor,
+                      initialValue: _selectedTailor,
                       decoration: InputDecoration(
                         labelText: 'Penjahit',
                         labelStyle: GoogleFonts.inter(fontSize: 14),
@@ -219,13 +199,13 @@ class _QuickProductionBottomSheetState
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                       ),
                       items: tailors.map((t) {
-                        return DropdownMenuItem(
-                          value: t,
-                          child: Text(t.name),
-                        );
+                        return DropdownMenuItem(value: t, child: Text(t.name));
                       }).toList(),
                       onChanged: (v) => setState(() => _selectedTailor = v),
                       validator: (v) => v == null ? 'Pilih penjahit' : null,
@@ -242,7 +222,9 @@ class _QuickProductionBottomSheetState
                       child: TextFormField(
                         controller: _quantityController,
                         keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                         decoration: InputDecoration(
                           labelText: 'Jumlah (pcs)',
@@ -253,11 +235,16 @@ class _QuickProductionBottomSheetState
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
                         ),
                         validator: (v) {
                           if (v == null || v.isEmpty) return 'Wajib diisi';
-                          if (int.tryParse(v) == null || int.parse(v) <= 0) return 'Tidak valid';
+                          if (int.tryParse(v) == null || int.parse(v) <= 0) {
+                            return 'Tidak valid';
+                          }
                           return null;
                         },
                       ),
@@ -271,20 +258,37 @@ class _QuickProductionBottomSheetState
                         error: (e, _) => Text('Error: $e'),
                         data: (categories) {
                           if (!_isWageInitialized && categories.isNotEmpty) {
-                            // find default
+                            final nameLower = widget.productName.toLowerCase();
                             final typeLower = widget.productType.toLowerCase();
+                            
+                            // First, try matching by product name
                             for (final cat in categories) {
                               final catName = cat.name.toLowerCase();
-                              if (typeLower.contains(catName) || catName.contains(typeLower)) {
+                              if (nameLower.contains(catName) || catName.contains(nameLower)) {
                                 _selectedWageCategory = cat;
                                 break;
                               }
                             }
-                            // Hardcode request from user: if 'baju', default to first category containing 'baju'
-                            if (_selectedWageCategory == null && typeLower.contains('baju')) {
-                               try {
-                                 _selectedWageCategory = categories.firstWhere((c) => c.name.toLowerCase().contains('baju'));
-                               } catch (_) {}
+                            
+                            // Second, if not found, try matching by product type
+                            if (_selectedWageCategory == null) {
+                              for (final cat in categories) {
+                                final catName = cat.name.toLowerCase();
+                                if (typeLower.contains(catName) || catName.contains(typeLower)) {
+                                  _selectedWageCategory = cat;
+                                  break;
+                                }
+                              }
+                            }
+
+                            // Fallback if name or type contains 'baju'
+                            if (_selectedWageCategory == null &&
+                                (nameLower.contains('baju') || typeLower.contains('baju'))) {
+                              try {
+                                _selectedWageCategory = categories.firstWhere(
+                                  (c) => c.name.toLowerCase().contains('baju'),
+                                );
+                              } catch (_) {}
                             }
                             // Must use post frame callback to set state if building
                             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -297,7 +301,7 @@ class _QuickProductionBottomSheetState
                           }
 
                           return DropdownButtonFormField<WageCategory>(
-                            value: _selectedWageCategory,
+                            initialValue: _selectedWageCategory,
                             decoration: InputDecoration(
                               labelText: 'Kategori Upah',
                               labelStyle: GoogleFonts.inter(fontSize: 14),
@@ -307,23 +311,21 @@ class _QuickProductionBottomSheetState
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide.none,
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
                             ),
                             items: categories.map((cat) {
-                              final str = cat.amount.toInt().toString();
-                              final buffer = StringBuffer();
-                              for (int i = 0; i < str.length; i++) {
-                                if (i > 0 && (str.length - i) % 3 == 0) buffer.write('.');
-                                buffer.write(str[i]);
-                              }
-                              final formattedAmount = 'Rp ${buffer.toString()}';
+                              final formattedAmount = formatCurrency(cat.amount);
 
                               return DropdownMenuItem(
                                 value: cat,
                                 child: Text('${cat.name} ($formattedAmount)'),
                               );
                             }).toList(),
-                            onChanged: (v) => setState(() => _selectedWageCategory = v),
+                            onChanged: (v) =>
+                                setState(() => _selectedWageCategory = v),
                             validator: (v) => v == null ? 'Pilih upah' : null,
                             isExpanded: true,
                           );

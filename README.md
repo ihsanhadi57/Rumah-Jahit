@@ -61,6 +61,13 @@ Automated wage calculation based on production output.
 ### 4. Inventory Control
 Dual-layer inventory management for both raw fabrics/components and finished inventory.
 
+### 5. Quick Production (Setoran Cepat)
+Directly record tailor outputs and calculate payroll in a unified flow without requiring an active SPK.
+- **Card-based Product Picker:** Dynamic card layout displaying stock level and sizes matching the main finished inventory interface.
+- **Advanced Local Filtering:** Filter by school level (SD, MIN, SMP, etc.) or garment type, with keyword search.
+- **Auto-detected Wages:** Auto-populate labor rates by matching product type/name with wage categories.
+- **Direct Launch UX:** Instant picker popups directly from employee list views and product detail pages to minimize click fatigue.
+
 ## 🔧 Setup & Installation
 
 ### Prerequisites

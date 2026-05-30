@@ -840,7 +840,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
               Switch.adaptive(
                 value: _hasLogo,
-                activeColor: const Color(0xFF004D4C),
+                activeTrackColor: const Color(0xFF004D4C),
                 onChanged: (val) => setState(() => _hasLogo = val),
               ),
             ],

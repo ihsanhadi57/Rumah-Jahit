@@ -31,7 +31,8 @@ class QuickProductionService {
       'user_name': tailor.name,
       'type': 'tambah stok', // User requested label "tambah stok"
       'spk_id': null,
-      'spk_title': product.name, // Use product name for reference
+      'spk_title':
+          '${product.name} - ${product.schoolLevels.join('/')} - ${product.type}', // Use detailed product name for reference
       'note': note,
       'pieces_count': quantity,
       'wage_per_piece': wagePerPiece,
@@ -42,7 +43,9 @@ class QuickProductionService {
 
     // 3. Tambah statistik tahunan penjahit
     final year = DateTime.now().year;
-    final statRef = _firestore.collection('tailor_annual_stats').doc('${tailor.id}_$year');
+    final statRef = _firestore
+        .collection('tailor_annual_stats')
+        .doc('${tailor.id}_$year');
     batch.set(statRef, {
       'user_id': tailor.id,
       'user_name': tailor.name,

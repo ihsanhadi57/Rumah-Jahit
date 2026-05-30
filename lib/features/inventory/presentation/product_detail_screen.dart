@@ -870,7 +870,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: selectedType,
+                    initialValue: selectedType,
                     style: GoogleFonts.inter(
                       color: Colors.black,
                       fontWeight: FontWeight.w600,
